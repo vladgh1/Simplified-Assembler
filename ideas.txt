@@ -1,0 +1,57 @@
+Simple ASM (SASM)
+
+Only one block of code, no .text ... sections
+
+Registers (REG):
+EAX, EBX, ECX, EDX : DBL
+AX, BX, CX, DX : WRD
+AL, AH, BL, BH, CL, CH, DL, DH : CHR
+ESP, EBP, ESI, EDI, EIP etc.
+
+Flags (EFL):
+ZF, CF, OF, SF, AF, PF, NF etc.
+
+Numbers (NUM):
+CHR:  8 bits
+WRD: 16 bits
+DBL: 32 bits
+QAD: 64 bits
+
+Memory Zone (MEM):
+Envirnoment like
+VAR -> MEM
+
+Functions (FUN):
+
+
+Basic operations:
+mov [REG] [REG]
+add [REG] [REG]
+add [REG] [NUM]
+sub ...
+mul ...
+div ...
+inc [REG]
+dec [REG]
+or
+and
+xor
+xchg
+shl
+shr
+
+[LABEL]:
+cmp
+jmp [LABEL]
+je, jne, jg, jge, jl, jle
+
+push [REG]
+pop [REG]
+fun [NAME]
+call [FUN]
+ret
+
+def [TYPE] [VAR]
+free [VAR]
+
+fun [NAME]:
