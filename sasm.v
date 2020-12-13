@@ -434,4 +434,49 @@ Notation "'jg' A" := (op_jg A)(at level 1, A at level 0).
 Notation "'jge' A" := (op_jge A)(at level 1, A at level 0).
 Notation "'jl' A" := (op_jl A)(at level 1, A at level 0).
 Notation "'jle' A" := (op_jle A)(at level 1, A at level 0).
+
+Notation "'MOV' A B" := (op_mov A B)(at level 1, A, B at level 0).
+Notation "'ADD' A B" := (op_add A B)(at level 1, A, B at level 0).
+Notation "'SUB' A B" := (op_sub A B)(at level 1, A, B at level 0).
+Notation "'MUL' A B" := (op_mul A B)(at level 1, A, B at level 0).
+Notation "'DIV' A B" := (op_div A B)(at level 1, A, B at level 0).
+
+Notation "'INC' A" := (op_inc A)(at level 1, A at level 0).
+Notation "'DEC' A" := (op_dec A)(at level 1, A at level 0).
+
+Notation "'XCHG' A B" := (op_xchg A B)(at level 1, A, B at level 0).
+
+Notation "'SHR' A" := (op_shr A)(at level 1, A at level 0).
+Notation "'SHL' A" := (op_shl A)(at level 1, A at level 0).
+Notation "'SAR' A" := (op_sar A)(at level 1, A at level 0).
+Notation "'SAL' A" := (op_sal A)(at level 1, A at level 0).
+Notation "'ROR' A" := (op_ror A)(at level 1, A at level 0).
+Notation "'ROL' A" := (op_rol A)(at level 1, A at level 0).
+Notation "'NOT' A" := (op_not A)(at level 1, A at level 0).
+
+Notation "'AND' A B" := (op_and A B)(at level 1, A, B at level 0).
+Notation "'NAND' A B" := (op_nand A B)(at level 1, A, B at level 0).
+Notation "'XAND' A B" := (op_xand A B)(at level 1, A, B at level 0).
+Notation "'XNAND' A B" := (op_xnand A B)(at level 1, A, B at level 0).
+Notation "'OR' A B" := (op_or A B)(at level 1, A, B at level 0).
+Notation "'NOR' A B" := (op_nor A B)(at level 1, A, B at level 0).
+Notation "'XOR' A B" := (op_xor A B)(at level 1, A, B at level 0).
+Notation "'XNOR' A B" := (op_xnor A B)(at level 1, A, B at level 0).
+
+Notation "'DEF' A S" := (op_def A S)(at level 1, A, S at level 0).
+Notation "'FREE' A S" := (op_free A S)(at level 1, A, S at level 0).
+
+Notation "'PUSH' A" := (op_push A)(at level 1, A at level 0).
+Notation "'POP' A" := (op_pop A)(at level 1, A at level 0).
+Notation "'FUN' A" := (op_sub A)(at level 1, A at level 0).
+Notation "'CALL' A" := (op_mul A)(at level 1, A at level 0).
+Notation "'RET' A" := (op_div A)(at level 1, A at level 0).
+
+Notation "'CMP' A B" := (op_cmp A B)(at level 1, A, B at level 0).
+Notation "'JMP' A" := (op_jmp A)(at level 1, A at level 0).
+Notation "'JNE' A" := (op_jne A)(at level 1, A at level 0).
+Notation "'JG' A" := (op_jg A)(at level 1, A at level 0).
+Notation "'JGE' A" := (op_jge A)(at level 1, A at level 0).
+Notation "'JL' A" := (op_jl A)(at level 1, A at level 0).
+Notation "'JLE' A" := (op_jle A)(at level 1, A at level 0).
 Check (mov EAX EBX).
