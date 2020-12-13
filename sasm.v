@@ -1,4 +1,4 @@
-Require Import Bool Coq.Numbers.BinNums Coq.ZArith.BinInt.
+Require Import Bool Coq.ZArith.BinInt.
 Local Open Scope Z_scope.
 
 Inductive Bit := false | true.
@@ -246,10 +246,146 @@ Definition xnanddword (d1 d2 : DWord) : DWord :=
 		| dword w1 w2, dword w1' w2' => dword (xnandword w1 w1') (xnandword w2 w2')
 		end.
 
+Inductive XCHGReg := XCHGR.
 Inductive ByteReg := AH | AL | BH | BL | CH | CL | DH | DL.
 Inductive WordReg := AX | BX | CX | DX.
-Inductive NonSPReg := EAX| EBX | ECX | EDX | ESI | EDI | EBP.
-Inductive Reg := nonSPReg (r : NonSPReg) | ESP.
-Inductive AnyReg := regToAnyReg (r : Reg) | EIP.
+Inductive DWordReg := EAX| EBX | ECX | EDX | ESI | EDI | EBP.
+Inductive Reg := byteReg (r : ByteReg) | wordReg (r : WordReg) | dwordReg (r : DWordReg) | ESP | EIP.
+
+Coercion byteReg : ByteReg >-> Reg.
+Coercion wordReg : WordReg >-> Reg.
+Coercion dwordReg : DWordReg >-> Reg.
+
+Require Import Coq.Strings.String.
+Local Open Scope string_scope.
+
+Inductive Var :=
+| reg : Reg -> Var
+| str : string -> Var.
+Coercion reg : Reg >-> Var.
+Coercion str : string >-> Var.
+Scheme Equality for Var.
+
+Inductive Val :=
+| null
+| bitval : Bit -> Val
+| byteval : Byte -> Val
+| wordval : Word -> Val
+| dwordval : DWord -> Val.
+Scheme Equality for Val.
+
+Inductive Scale := S0 | S1 | S2 | S4 | S8.
+Scheme Equality for Scale.
+Definition nat_to_scale (n : Z) : Scale :=
+		match n with
+		| 0 => S0
+		| 1 => S1
+		| 2 => S2
+		| 4 => S4
+		| 8 => S8
+		| _ => S8
+		end.
+
+Definition Env := Var -> Scale -> Val.
+Compute Scale_eq_dec S0 S0.
+Definition env0 : Env :=
+	fun (v : Var)(s : Scale) =>
+		if (Scale_eq_dec s S0)
+		then null
+		else if (Scale_eq_dec s S1)
+				 then bitval 0
+				 else if (Scale_eq_dec s S2)
+				 			then byteval 0
+				 			else if (Scale_eq_dec s S4)
+				 			then wordval 0
+				 			else dwordval 0.
+Check env0.
+Compute env0 EAX S8.
+
+Definition initializate (env : Env) (v : Var) (s : Scale) : Env :=
+		fun (y : Var) (s1 : Scale) =>
+			if (Val_eq_dec (env v S0) null)
+			then (env y s)
+			else (env v s).
+
+Compute env0 EAX S0.
+Definition envScale (env : Env) (v : Var) : Scale :=
+		match env v S0 with
+		| null => S0
+		| bitval b => S1
+		| byteval b => S2
+		| wordval w => S4
+		| dwordval d => S8
+		end.
+Definition nat_to_val (n : Z)(s : Scale) : Val :=
+		match s with
+		| S0 => null
+		| S1 => bitval n
+		| S2 => byteval n
+		| S4 => wordval n
+		| S8 => dwordval n
+		end.
+
+Compute env0 EAX S0.
+Definition env1 := initializate env0 EAX S8.
+Compute env1 EAX S0.
+
+Definition update (env : Env) (x : Var) (v : Z) : Env :=
+		fun (y : Var) (s : Scale) =>
+		  if (Var_eq_dec y x)
+		  then nat_to_val v (envScale env x)
+		  else (env y (envScale env y)).
+Check AX.
+Definition env2 := update env1 EAX (0x0F0F).
+Compute env2 EAX S0.
+Compute envScale env0 EAX.
 
 
+Inductive Instruction :=
+| op_mov : Var -> Var -> Instruction
+| op_add : Var -> Var -> Instruction
+| op_sub : Var -> Var -> Instruction
+| op_mul : Var -> Var -> Instruction
+| op_div : Var -> Var -> Instruction
+
+| op_inc : Var -> Instruction
+| op_dec : Var -> Instruction
+
+| op_xchg : Var -> Var -> Instruction
+
+| op_shr : Var -> Instruction
+| op_shl : Var -> Instruction
+| op_sar : Var -> Instruction
+| op_sal : Var -> Instruction
+| op_ror : Var -> Instruction
+| op_rol : Var -> Instruction
+| op_not : Var -> Instruction
+| op_and : Var -> Var -> Instruction
+| op_nand : Var -> Var -> Instruction
+| op_xand : Var -> Var -> Instruction
+| op_xnand : Var -> Var -> Instruction
+| op_or : Var -> Var -> Instruction
+| op_nor : Var -> Var -> Instruction
+| op_xor : Var -> Var -> Instruction
+| op_xnor : Var -> Var -> Instruction
+
+| op_def : Var -> Scale -> Instruction
+| op_free : Var -> Instruction
+
+| op_push : Var -> Instruction
+| op_pop : Var -> Instruction
+| op_fun : string -> Instruction
+| op_call : string -> Instruction
+| op_ret : Instruction
+
+| op_label : string -> Instruction
+| op_cmp : Var -> Var -> Instruction
+| op_jmp : string -> Instruction
+| op_jne : string -> Instruction
+| op_jg : string -> Instruction
+| op_jge : string -> Instruction
+| op_jl : string -> Instruction
+| op_jle : string -> Instruction
+.
+
+Check op_mov EAX "x".
