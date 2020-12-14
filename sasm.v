@@ -1,4 +1,4 @@
-Require Import Bool Coq.ZArith.BinInt.
+Require Import Coq.ZArith.BinInt.
 Local Open Scope Z_scope.
 
 Inductive Bit := false | true.
@@ -8,6 +8,12 @@ Definition bit (n : Z) : Bit :=
 		| _ => true
 		end.
 Coercion bit : Z >-> Bit.
+
+Definition bit_to_nat (b : Bit) : Z :=
+		match b with
+		| false => 0
+		| true => 1
+		end.
 
 Definition notbit (b1 : Bit) : Bit :=
 		match b1 with
@@ -246,11 +252,29 @@ Definition xnanddword (d1 d2 : DWord) : DWord :=
 		| dword w1 w2, dword w1' w2' => dword (xnandword w1 w1') (xnandword w2 w2')
 		end.
 
+(*
+ * EFLAGS
+ *)
+
+Inductive EFLAGS :=
+| CF (* Carry flag *)
+| PF (* Parity flag: 1 if even numbers of 1 *)
+| AF (* Auxiliary Carry flag *)
+| ZF (* Zero flag *)
+| SF (* Sign flag *)
+| OF (* Overflow flag *)
+.
+
+
+(*
+ * REGISTERS
+ *)
+
 Inductive XCHGReg := XCHGR.
 Inductive ByteReg := AH | AL | BH | BL | CH | CL | DH | DL.
-Inductive WordReg := AX | BX | CX | DX.
+Inductive WordReg := AX | BX | CX | DX | SI | DI | BP.
 Inductive DWordReg := EAX | EBX | ECX | EDX | ESI | EDI | EBP.
-Inductive Reg := byteReg (r : ByteReg) | wordReg (r : WordReg) | dwordReg (r : DWordReg) | ESP | EIP.
+Inductive Reg := byteReg (r : ByteReg) | wordReg (r : WordReg) | dwordReg (r : DWordReg) | ESP | SP | EIP.
 
 Coercion byteReg : ByteReg >-> Reg.
 Coercion wordReg : WordReg >-> Reg.
@@ -274,6 +298,11 @@ Inductive Val :=
 | dwordval : DWord -> Val.
 Scheme Equality for Val.
 
+Notation "'bit' 'ptr' A" := (bitval A)(at level 2, A at level 1).
+Notation "'byte' 'ptr' A" := (byteval A)(at level 2, A at level 1).
+Notation "'word' 'ptr' A" := (wordval A)(at level 2, A at level 1).
+Notation "'dword' 'ptr' A" := (dwordval A)(at level 2, A at level 1).
+
 Inductive Scale := S0 | S1 | S2 | S4 | S8.
 Scheme Equality for Scale.
 Definition nat_to_scale (n : Z) : Scale :=
@@ -286,29 +315,21 @@ Definition nat_to_scale (n : Z) : Scale :=
 		| _ => S8
 		end.
 
+Notation "'bit' 'ptr'" := S1 (at level 2).
+Notation "'byte' 'ptr'" := S2 (at level 2).
+Notation "'word' 'ptr'" := S4 (at level 2).
+Notation "'dword' 'ptr'" := S8 (at level 2).
+Check bit ptr.
+Check byte ptr.
+Check word ptr 10.
+
 Definition Env := Var -> Scale -> Val.
 Compute Scale_eq_dec S0 S0.
 Definition env0 : Env :=
-	fun (v : Var)(s : Scale) =>
-		if (Scale_eq_dec s S0)
-		then null
-		else if (Scale_eq_dec s S1)
-				 then bitval 0
-				 else if (Scale_eq_dec s S2)
-				 			then byteval 0
-				 			else if (Scale_eq_dec s S4)
-				 			then wordval 0
-				 			else dwordval 0.
+	fun (v : Var)(s : Scale) => null.
 Check env0.
 Compute env0 EAX S8.
 
-Definition initializate (env : Env) (v : Var) (s : Scale) : Env :=
-		fun (y : Var) (s1 : Scale) =>
-			if (Val_eq_dec (env v S0) null)
-			then (env y s)
-			else (env v s).
-
-Compute env0 EAX S0.
 Definition envScale (env : Env) (v : Var) : Scale :=
 		match env v S0 with
 		| null => S0
@@ -325,28 +346,97 @@ Definition nat_to_val (n : Z)(s : Scale) : Val :=
 		| S4 => wordval n
 		| S8 => dwordval n
 		end.
+Compute bitval 1.
+
+Definition val_to_nat (v : Val) : Z :=
+		match v with
+		| null => 0
+		| bitval n => bit_to_nat n
+		| byteval n => byte_to_nat n
+		| wordval n => word_to_nat n
+		| dwordval n => dword_to_nat n
+		end.
+
+Definition initialize (env : Env) (v : Var) (s : Scale) : Env :=
+		fun (y : Var) (s1 : Scale) =>
+			if (Var_eq_dec v y)
+			then if (Val_eq_dec (env y s) null)
+				then nat_to_val 0 s
+				else (env v s)
+			else (env y s).
+Definition update (env : Env) (v : Var) (x : Z) : Env :=
+		fun (y : Var) (s : Scale) =>
+		  if (Var_eq_dec v y)
+			then if (Val_eq_dec (env y s) null)
+				then null
+				else nat_to_val x (envScale env v)
+			else env y s.
+Definition deinitialize (env : Env) (v : Var) : Env :=
+		fun (y : Var) (s : Scale) =>
+			if (Var_eq_dec y v)
+			then null
+			else env y s.
 
 Compute env0 EAX S0.
-Definition env1 := initializate env0 EAX S8.
+Definition env1 := initialize env0 EAX S8.
 Compute env1 EAX S0.
-
-Definition update (env : Env) (x : Var) (v : Z) : Env :=
-		fun (y : Var) (s : Scale) =>
-		  if (Var_eq_dec y x)
-		  then nat_to_val v (envScale env x)
-		  else (env y (envScale env y)).
-Check AX.
-Definition env2 := update env1 EAX (0x0F0F).
+Compute env1 "x" S0.
+Definition env2 := update env1 EAX (0xFFFFFFFF).
 Compute env2 EAX S0.
-Compute envScale env0 EAX.
+Compute env2 "x" S0.
+Definition env21 := initialize env2 "x" S1.
+Definition env3 := update env21 "x" 0x0001.
+Compute env3 "x" S0.
+Compute env3 EAX S0.
+Definition env4 := deinitialize env3 EAX.
+Compute env4 "x" S0.
+Compute env4 EAX S0.
 
+Compute val_to_nat (env2 "x" S0).
+
+Inductive Any := register (r : Reg) | val (v : Val).
+Coercion register : Reg >-> Any.
+Coercion val : Val >-> Any.
+
+Inductive Exp :=
+| const : Z -> Exp
+| v : Val -> Exp
+| sum : Exp -> Exp -> Exp
+| dif : Exp -> Exp -> Exp
+| mul : Exp -> Exp -> Exp.
+
+Coercion const : Z >-> Exp.
+Coercion v : Val >-> Exp.
+
+Check sum (env4 "x" S0) (env3 EAX S0).
+
+Inductive Mem : Set :=
+| nill
+| mem (_ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _
+			 _ _ _ _ _ _ _ _  : Bit).
+
+Definition Memory := Exp -> Mem.
+Definition mem0 : Memory :=
+		fun (exp : Exp) => nill.
+Notation "'[' A '//' Mem ']'" := (Mem A) (at level 0).
+
+Definition Stack := list Byte.
 
 Inductive Instruction :=
-| op_mov : Var -> Var -> Instruction
-| op_add : Var -> Var -> Instruction
-| op_sub : Var -> Var -> Instruction
-| op_mul : Var -> Var -> Instruction
-| op_div : Var -> Var -> Instruction
+| sequence : Instruction -> Instruction -> Instruction
+
+| op_nop : Instruction
+| op_mov : Var -> Any -> Instruction
+| op_add : Var -> Any -> Instruction
+| op_sub : Var -> Any -> Instruction
+| op_mul : Var -> Any -> Instruction
+| op_div : Var -> Any -> Instruction
 
 | op_inc : Var -> Instruction
 | op_dec : Var -> Instruction
@@ -360,15 +450,16 @@ Inductive Instruction :=
 | op_ror : Var -> Instruction
 | op_rol : Var -> Instruction
 | op_not : Var -> Instruction
+| op_neg : Var -> Instruction
 
-| op_and : Var -> Var -> Instruction
-| op_nand : Var -> Var -> Instruction
-| op_xand : Var -> Var -> Instruction
-| op_xnand : Var -> Var -> Instruction
-| op_or : Var -> Var -> Instruction
-| op_nor : Var -> Var -> Instruction
-| op_xor : Var -> Var -> Instruction
-| op_xnor : Var -> Var -> Instruction
+| op_and : Var -> Any -> Instruction
+| op_nand : Var -> Any -> Instruction
+| op_xand : Var -> Any -> Instruction
+| op_xnand : Var -> Any -> Instruction
+| op_or : Var -> Any -> Instruction
+| op_nor : Var -> Any -> Instruction
+| op_xor : Var -> Any -> Instruction
+| op_xnor : Var -> Any -> Instruction
 
 | op_def : Var -> Scale -> Instruction
 | op_free : Var -> Instruction
@@ -381,6 +472,7 @@ Inductive Instruction :=
 
 | op_label : string -> Instruction
 | op_cmp : Var -> Var -> Instruction
+| op_test : Var -> Var -> Instruction
 | op_jmp : string -> Instruction
 | op_jne : string -> Instruction
 | op_jg : string -> Instruction
@@ -389,94 +481,105 @@ Inductive Instruction :=
 | op_jle : string -> Instruction
 .
 
-Notation "'mov' A B" := (op_mov A B)(at level 1, A, B at level 0).
-Notation "'add' A B" := (op_add A B)(at level 1, A, B at level 0).
-Notation "'sub' A B" := (op_sub A B)(at level 1, A, B at level 0).
-Notation "'mul' A B" := (op_mul A B)(at level 1, A, B at level 0).
-Notation "'div' A B" := (op_div A B)(at level 1, A, B at level 0).
+Notation "A ';' B" := (sequence A B) (at level 10).
+Notation "'nop'" := (op_nop)(at level 6).
+Notation "'mov' A B" := (op_mov A B)(at level 6, A, B at level 5).
+Notation "'add' A B" := (op_add A B)(at level 6, A, B at level 5).
+Notation "'sub' A B" := (op_sub A B)(at level 6, A, B at level 5).
+Notation "'mul' A B" := (op_mul A B)(at level 6, A, B at level 5).
+Notation "'div' A B" := (op_div A B)(at level 6, A, B at level 5).
 
-Notation "'inc' A" := (op_inc A)(at level 1, A at level 0).
-Notation "'dec' A" := (op_dec A)(at level 1, A at level 0).
+Notation "'inc' A" := (op_inc A)(at level 6, A at level 5).
+Notation "'dec' A" := (op_dec A)(at level 6, A at level 5).
 
-Notation "'xchg' A B" := (op_xchg A B)(at level 1, A, B at level 0).
+Notation "'xchg' A B" := (op_xchg A B)(at level 6, A, B at level 5).
 
-Notation "'shr' A" := (op_shr A)(at level 1, A at level 0).
-Notation "'shl' A" := (op_shl A)(at level 1, A at level 0).
-Notation "'sar' A" := (op_sar A)(at level 1, A at level 0).
-Notation "'sal' A" := (op_sal A)(at level 1, A at level 0).
-Notation "'ror' A" := (op_ror A)(at level 1, A at level 0).
-Notation "'rol' A" := (op_rol A)(at level 1, A at level 0).
-Notation "'not' A" := (op_not A)(at level 1, A at level 0).
+Notation "'shr' A" := (op_shr A)(at level 6, A at level 5).
+Notation "'shl' A" := (op_shl A)(at level 6, A at level 5).
+Notation "'sar' A" := (op_sar A)(at level 6, A at level 5).
+Notation "'sal' A" := (op_sal A)(at level 6, A at level 5).
+Notation "'ror' A" := (op_ror A)(at level 6, A at level 5).
+Notation "'rol' A" := (op_rol A)(at level 6, A at level 5).
+Notation "'not' A" := (op_not A)(at level 6, A at level 5).
+Notation "'neg' A" := (op_neg A)(at level 6, A at level 5).
 
-Notation "'and' A B" := (op_and A B)(at level 1, A, B at level 0).
-Notation "'nand' A B" := (op_nand A B)(at level 1, A, B at level 0).
-Notation "'xand' A B" := (op_xand A B)(at level 1, A, B at level 0).
-Notation "'xnand' A B" := (op_xnand A B)(at level 1, A, B at level 0).
-Notation "'or' A B" := (op_or A B)(at level 1, A, B at level 0).
-Notation "'nor' A B" := (op_nor A B)(at level 1, A, B at level 0).
-Notation "'xor' A B" := (op_xor A B)(at level 1, A, B at level 0).
-Notation "'xnor' A B" := (op_xnor A B)(at level 1, A, B at level 0).
+Notation "'and' A B" := (op_and A B)(at level 6, A, B at level 5).
+Notation "'nand' A B" := (op_nand A B)(at level 6, A, B at level 5).
+Notation "'xand' A B" := (op_xand A B)(at level 6, A, B at level 5).
+Notation "'xnand' A B" := (op_xnand A B)(at level 6, A, B at level 5).
+Notation "'or' A B" := (op_or A B)(at level 6, A, B at level 5).
+Notation "'nor' A B" := (op_nor A B)(at level 6, A, B at level 5).
+Notation "'xor' A B" := (op_xor A B)(at level 6, A, B at level 5).
+Notation "'xnor' A B" := (op_xnor A B)(at level 6, A, B at level 5).
 
-Notation "'def' A S" := (op_def A S)(at level 1, A, S at level 0).
-Notation "'free' A S" := (op_free A S)(at level 1, A, S at level 0).
+Notation "'def' A S" := (op_def A S)(at level 6, A, S at level 5).
+Notation "'free' A S" := (op_free A S)(at level 6, A, S at level 5).
 
-Notation "'push' A" := (op_push A)(at level 1, A at level 0).
-Notation "'pop' A" := (op_pop A)(at level 1, A at level 0).
-Notation "'fun' A" := (op_sub A)(at level 1, A at level 0).
-Notation "'call' A" := (op_mul A)(at level 1, A at level 0).
-Notation "'ret' A" := (op_div A)(at level 1, A at level 0).
+Notation "'push' A" := (op_push A)(at level 6, A at level 5).
+Notation "'pop' A" := (op_pop A)(at level 6, A at level 5).
+Notation "'fun' A" := (op_sub A)(at level 6, A at level 5).
+Notation "'call' A" := (op_mul A)(at level 6, A at level 5).
+Notation "'ret' A" := (op_div A)(at level 6, A at level 5).
 
-Notation "A ':' " := (op_label A)(at level 1).
-Notation "'cmp' A B" := (op_cmp A B)(at level 1, A, B at level 0).
-Notation "'jmp' A" := (op_jmp A)(at level 1, A at level 0).
-Notation "'jne' A" := (op_jne A)(at level 1, A at level 0).
-Notation "'jg' A" := (op_jg A)(at level 1, A at level 0).
-Notation "'jge' A" := (op_jge A)(at level 1, A at level 0).
-Notation "'jl' A" := (op_jl A)(at level 1, A at level 0).
-Notation "'jle' A" := (op_jle A)(at level 1, A at level 0).
+Notation "A ':' " := (op_label A)(at level 55).
+Notation "'cmp' A B" := (op_cmp A B)(at level 6, A, B at level 5).
+Notation "'test' A B" := (op_test A B)(at level 6, A, B at level 5).
+Notation "'jmp' A" := (op_jmp A)(at level 6, A at level 5).
+Notation "'jne' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'jg' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'jge' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'jl' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'jle' A" := (op_jle A)(at level 6, A at level 5).
 
-Notation "'MOV' A B" := (op_mov A B)(at level 1, A, B at level 0).
-Notation "'ADD' A B" := (op_add A B)(at level 1, A, B at level 0).
-Notation "'SUB' A B" := (op_sub A B)(at level 1, A, B at level 0).
-Notation "'MUL' A B" := (op_mul A B)(at level 1, A, B at level 0).
-Notation "'DIV' A B" := (op_div A B)(at level 1, A, B at level 0).
+Notation "'NOP'" := (op_nop)(at level 6).
+Notation "'MOV' A B" := (op_mov A B)(at level 6, A, B at level 5).
+Notation "'ADD' A B" := (op_add A B)(at level 6, A, B at level 5).
+Notation "'SUB' A B" := (op_sub A B)(at level 6, A, B at level 5).
+Notation "'MUL' A B" := (op_mul A B)(at level 6, A, B at level 5).
+Notation "'DIV' A B" := (op_div A B)(at level 6, A, B at level 5).
 
-Notation "'INC' A" := (op_inc A)(at level 1, A at level 0).
-Notation "'DEC' A" := (op_dec A)(at level 1, A at level 0).
+Notation "'INC' A" := (op_inc A)(at level 6, A at level 5).
+Notation "'DEC' A" := (op_dec A)(at level 6, A at level 5).
 
-Notation "'XCHG' A B" := (op_xchg A B)(at level 1, A, B at level 0).
+Notation "'XCHG' A B" := (op_xchg A B)(at level 6, A, B at level 5).
 
-Notation "'SHR' A" := (op_shr A)(at level 1, A at level 0).
-Notation "'SHL' A" := (op_shl A)(at level 1, A at level 0).
-Notation "'SAR' A" := (op_sar A)(at level 1, A at level 0).
-Notation "'SAL' A" := (op_sal A)(at level 1, A at level 0).
-Notation "'ROR' A" := (op_ror A)(at level 1, A at level 0).
-Notation "'ROL' A" := (op_rol A)(at level 1, A at level 0).
-Notation "'NOT' A" := (op_not A)(at level 1, A at level 0).
+Notation "'SHR' A" := (op_shr A)(at level 6, A at level 5).
+Notation "'SHL' A" := (op_shl A)(at level 6, A at level 5).
+Notation "'SAR' A" := (op_sar A)(at level 6, A at level 5).
+Notation "'SAL' A" := (op_sal A)(at level 6, A at level 5).
+Notation "'ROR' A" := (op_ror A)(at level 6, A at level 5).
+Notation "'ROL' A" := (op_rol A)(at level 6, A at level 5).
+Notation "'NOT' A" := (op_not A)(at level 6, A at level 5).
+Notation "'NEG' A" := (op_neg A)(at level 6, A at level 5).
 
-Notation "'AND' A B" := (op_and A B)(at level 1, A, B at level 0).
-Notation "'NAND' A B" := (op_nand A B)(at level 1, A, B at level 0).
-Notation "'XAND' A B" := (op_xand A B)(at level 1, A, B at level 0).
-Notation "'XNAND' A B" := (op_xnand A B)(at level 1, A, B at level 0).
-Notation "'OR' A B" := (op_or A B)(at level 1, A, B at level 0).
-Notation "'NOR' A B" := (op_nor A B)(at level 1, A, B at level 0).
-Notation "'XOR' A B" := (op_xor A B)(at level 1, A, B at level 0).
-Notation "'XNOR' A B" := (op_xnor A B)(at level 1, A, B at level 0).
+Notation "'AND' A B" := (op_and A B)(at level 6, A, B at level 5).
+Notation "'NAND' A B" := (op_nand A B)(at level 6, A, B at level 5).
+Notation "'XAND' A B" := (op_xand A B)(at level 6, A, B at level 5).
+Notation "'XNAND' A B" := (op_xnand A B)(at level 6, A, B at level 5).
+Notation "'OR' A B" := (op_or A B)(at level 6, A, B at level 5).
+Notation "'NOR' A B" := (op_nor A B)(at level 6, A, B at level 5).
+Notation "'XOR' A B" := (op_xor A B)(at level 6, A, B at level 5).
+Notation "'XNOR' A B" := (op_xnor A B)(at level 6, A, B at level 5).
 
-Notation "'DEF' A S" := (op_def A S)(at level 1, A, S at level 0).
-Notation "'FREE' A S" := (op_free A S)(at level 1, A, S at level 0).
+Notation "'DEF' A S" := (op_def A S)(at level 6, A, S at level 5).
+Notation "'FREE' A S" := (op_free A S)(at level 6, A, S at level 5).
 
-Notation "'PUSH' A" := (op_push A)(at level 1, A at level 0).
-Notation "'POP' A" := (op_pop A)(at level 1, A at level 0).
-Notation "'FUN' A" := (op_sub A)(at level 1, A at level 0).
-Notation "'CALL' A" := (op_mul A)(at level 1, A at level 0).
-Notation "'RET' A" := (op_div A)(at level 1, A at level 0).
+Notation "'PUSH' A" := (op_push A)(at level 6, A at level 5).
+Notation "'POP' A" := (op_pop A)(at level 6, A at level 5).
+Notation "'FUN' A" := (op_sub A)(at level 6, A at level 5).
+Notation "'CALL' A" := (op_mul A)(at level 6, A at level 5).
+Notation "'RET' A" := (op_div A)(at level 6, A at level 5).
 
-Notation "'CMP' A B" := (op_cmp A B)(at level 1, A, B at level 0).
-Notation "'JMP' A" := (op_jmp A)(at level 1, A at level 0).
-Notation "'JNE' A" := (op_jne A)(at level 1, A at level 0).
-Notation "'JG' A" := (op_jg A)(at level 1, A at level 0).
-Notation "'JGE' A" := (op_jge A)(at level 1, A at level 0).
-Notation "'JL' A" := (op_jl A)(at level 1, A at level 0).
-Notation "'JLE' A" := (op_jle A)(at level 1, A at level 0).
+Notation "'CMP' A B" := (op_cmp A B)(at level 6, A, B at level 5).
+Notation "'TEST' A B" := (op_test A B)(at level 6, A, B at level 5).
+Notation "'JMP' A" := (op_jmp A)(at level 6, A at level 5).
+Notation "'JNE' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'JG' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'JGE' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'JL' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
 Check (mov EAX EBX).
+Check (mov EAX dword ptr (10+0x00FF00FF)).
+Check nop ; nop ; mov EAX EBX; def "x" word ptr; ADD "x" word ptr 10.
+
+
