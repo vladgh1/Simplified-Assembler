@@ -347,7 +347,8 @@ Inductive Val :=
 | bitval : Bit -> Val
 | byteval : Byte -> Val
 | wordval : Word -> Val
-| dwordval : DWord -> Val.
+| dwordval : DWord -> Val
+| qwordval : QWord -> Val.
 Scheme Equality for Val.
 
 Notation "'bit' 'ptr' A" := (bitval A)(at level 2, A at level 1).
@@ -355,7 +356,7 @@ Notation "'byte' 'ptr' A" := (byteval A)(at level 2, A at level 1).
 Notation "'word' 'ptr' A" := (wordval A)(at level 2, A at level 1).
 Notation "'dword' 'ptr' A" := (dwordval A)(at level 2, A at level 1).
 
-Inductive Scale := S0 | S1 | S2 | S4 | S8.
+Inductive Scale := SN | S0 | S1 | S2 | S4 | S8.
 Scheme Equality for Scale.
 Definition nat_to_scale (n : Z) : Scale :=
 		match n with
@@ -364,13 +365,14 @@ Definition nat_to_scale (n : Z) : Scale :=
 		| 2 => S2
 		| 4 => S4
 		| 8 => S8
-		| _ => S8
+		| _ => SN
 		end.
 
-Notation "'bit' 'ptr'" := S1 (at level 2).
-Notation "'byte' 'ptr'" := S2 (at level 2).
-Notation "'word' 'ptr'" := S4 (at level 2).
-Notation "'dword' 'ptr'" := S8 (at level 2).
+Notation "'bit' 'ptr'" := S0 (at level 2).
+Notation "'byte' 'ptr'" := S1 (at level 2).
+Notation "'word' 'ptr'" := S2 (at level 2).
+Notation "'dword' 'ptr'" := S4 (at level 2).
+Notation "'qword' 'ptr'" := S8 (at level 2).
 Check bit ptr.
 Check byte ptr.
 Check word ptr 10.
@@ -379,24 +381,25 @@ Definition Env := Var -> Scale -> Val.
 Compute Scale_eq_dec S0 S0.
 Definition env0 : Env :=
 	fun (v : Var)(s : Scale) => null.
-Check env0.
 Compute env0 EAX S8.
 
 Definition envScale (env : Env) (v : Var) : Scale :=
 		match env v S0 with
-		| null => S0
-		| bitval b => S1
-		| byteval b => S2
-		| wordval w => S4
-		| dwordval d => S8
+		| null => SN
+		| bitval b => S0
+		| byteval b => S1
+		| wordval w => S2
+		| dwordval d => S4
+		| qwordval q => S8
 		end.
 Definition nat_to_val (n : Z)(s : Scale) : Val :=
 		match s with
-		| S0 => null
-		| S1 => bitval n
-		| S2 => byteval n
-		| S4 => wordval n
-		| S8 => dwordval n
+		| SN => null
+		| S0 => bitval n
+		| S1 => byteval n
+		| S2 => wordval n
+		| S4 => dwordval n
+		| S8 => qwordval n
 		end.
 Compute bitval 1.
 
@@ -407,6 +410,7 @@ Definition val_to_nat (v : Val) : Z :=
 		| byteval n => byte_to_nat n
 		| wordval n => word_to_nat n
 		| dwordval n => dword_to_nat n
+		| qwordval n => qword_to_nat n
 		end.
 
 Definition initialize (env : Env) (v : Var) (s : Scale) : Env :=
@@ -446,30 +450,31 @@ Compute env4 EAX S0.
 
 Compute val_to_nat (env2 "x" S0).
 
+Inductive MemEnv :=
+| envvar : Env -> Var -> MemEnv.
+Notation "V // E" := (envvar E V)(at level 19).
+
 Inductive Exp :=
+| esequence : Exp -> Exp
 | const : Z -> Exp
-| v : Val -> Exp
+| v : MemEnv -> Exp
 | sum : Exp -> Exp -> Exp
 | dif : Exp -> Exp -> Exp
-| mul : Exp -> Exp -> Exp.
+| mul : Exp -> Exp -> Exp
+| div : Exp -> Exp -> Exp.
 
 Coercion const : Z >-> Exp.
-Coercion v : Val >-> Exp.
+Coercion v : MemEnv >-> Exp.
 
-Check sum (env4 "x" S0) (env3 EAX S0).
+Notation "'[' E ']'" := (esequence E) (at level 21).
+Notation "E1 +' E2" := (sum E1 E2)(at level 20).
+Notation "E1 -' E2" := (dif E1 E2)(at level 20).
+Notation "E1 *' E2" := (mul E1 E2)(at level 20).
+Notation "E1 /' E2" := (div E1 E2)(at level 20).
 
-Inductive Mem : Set :=
-| mem (_ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _
-			 _ _ _ _ _ _ _ _  : Bit).
+Check ["x"//env1 +' "x"//env1].
 
-
-Definition Memory := Exp -> Mem.
+Definition Memory := Exp -> QWord.
 
 Definition Stack := list Byte.
 Inductive Any := register (r : Reg) | val (v : Val) | exp (e : Exp).
