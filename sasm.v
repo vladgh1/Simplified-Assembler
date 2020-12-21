@@ -1,5 +1,7 @@
 Require Import Coq.ZArith.BinInt.
+Require Import Coq.Lists.List.
 Local Open Scope Z_scope.
+Open Scope list_scope.
 
 Inductive Bit := false | true.
 Definition bit (n : Z) : Bit :=
@@ -252,6 +254,56 @@ Definition xnanddword (d1 d2 : DWord) : DWord :=
 		| dword w1 w2, dword w1' w2' => dword (xnandword w1 w1') (xnandword w2 w2')
 		end.
 
+
+(*
+ * QWord (Quad Word) - 64 Bits
+ *)
+
+Inductive QWord :=
+| qword : DWord -> DWord -> QWord.
+
+Definition qword_to_nat (d : QWord) : Z :=
+		match d with
+		| qword d1 d2 => (2^32)*dword_to_nat d1 + dword_to_nat d2
+		end.
+Definition nat_to_qword (n : Z) : QWord :=
+		qword (nat_to_dword (n / 2 ^ 32)) (nat_to_dword (n mod 2 ^ 32)).
+Coercion nat_to_qword : Z >-> QWord.
+
+Definition orqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (ordword d1 d1') (ordword d2 d2')
+		end.
+Definition xorqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (xordword d1 d1') (xordword d2 d2')
+		end.
+Definition norqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (nordword d1 d1') (nordword d2 d2')
+		end.
+Definition xnorqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (xnordword d1 d1') (xnordword d2 d2')
+		end.
+
+Definition andqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (anddword d1 d1') (anddword d2 d2')
+		end.
+Definition xandqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (xanddword d1 d1') (xanddword d2 d2')
+		end.
+Definition nandqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (nanddword d1 d1') (nanddword d2 d2')
+		end.
+Definition xnandqword (q1 q2 : QWord) : QWord :=
+		match q1, q2 with
+		| qword d1 d2, qword d1' d2' => qword (xnanddword d1 d1') (xnanddword d2 d2')
+		end.
+
 (*
  * EFLAGS
  *)
@@ -394,10 +446,6 @@ Compute env4 EAX S0.
 
 Compute val_to_nat (env2 "x" S0).
 
-Inductive Any := register (r : Reg) | val (v : Val).
-Coercion register : Reg >-> Any.
-Coercion val : Val >-> Any.
-
 Inductive Exp :=
 | const : Z -> Exp
 | v : Val -> Exp
@@ -411,7 +459,6 @@ Coercion v : Val >-> Exp.
 Check sum (env4 "x" S0) (env3 EAX S0).
 
 Inductive Mem : Set :=
-| nill
 | mem (_ _ _ _ _ _ _ _
 			 _ _ _ _ _ _ _ _
 			 _ _ _ _ _ _ _ _
@@ -421,12 +468,13 @@ Inductive Mem : Set :=
 			 _ _ _ _ _ _ _ _
 			 _ _ _ _ _ _ _ _  : Bit).
 
+
 Definition Memory := Exp -> Mem.
-Definition mem0 : Memory :=
-		fun (exp : Exp) => nill.
-Notation "'[' A '//' Mem ']'" := (Mem A) (at level 0).
 
 Definition Stack := list Byte.
+Inductive Any := register (r : Reg) | val (v : Val) | exp (e : Exp).
+Coercion register : Reg >-> Any.
+Coercion val : Val >-> Any.
 
 Inductive Instruction :=
 | sequence : Instruction -> Instruction -> Instruction
@@ -578,8 +626,9 @@ Notation "'JG' A" := (op_jg A)(at level 6, A at level 5).
 Notation "'JGE' A" := (op_jge A)(at level 6, A at level 5).
 Notation "'JL' A" := (op_jl A)(at level 6, A at level 5).
 Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
+
 Check (mov EAX EBX).
 Check (mov EAX dword ptr (10+0x00FF00FF)).
-Check nop ; nop ; mov EAX EBX; def "x" word ptr; ADD "x" word ptr 10.
+Check nop ; nop ; mov EAX EIP; def "x" word ptr; ADD "x" word ptr 10.
 
 
