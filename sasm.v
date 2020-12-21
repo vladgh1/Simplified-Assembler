@@ -335,6 +335,106 @@ Coercion dwordReg : DWordReg >-> Reg.
 Require Import Coq.Strings.String.
 Local Open Scope string_scope.
 
+(* Stack *)
+
+Definition Stack := list Byte.
+
+(* Push *)
+Definition push_byte (s : Stack)(b : Byte) : Stack :=
+		match b with
+		| _ => (b :: s)
+		end.
+Definition push_word (s : Stack)(w : Word) : Stack :=
+		match w with
+		| word b1 b2 => push_byte (push_byte s b1) b2
+		end.
+Definition push_dword (s : Stack)(d : DWord) : Stack :=
+		match d with
+		| dword w1 w2 => push_word (push_word s w1) w2
+		end.
+Definition push_qword (s : Stack)(q : QWord) : Stack :=
+		match q with
+		| qword d1 d2 => push_dword (push_dword s d1) d2
+		end.
+Compute push_word (nil) (nat_to_word 10).
+
+(* Pop *)
+Definition pop_byte (s : Stack) : Stack :=
+		match s with
+		| nil => nil
+		| _ :: s => s
+		end.
+Definition pop_word (s : Stack) : Stack :=
+		match s with
+		| nil => nil
+		| _ :: nil => nil
+		| _ :: _ :: s => s
+		end.
+Definition pop_dword (s : Stack) : Stack :=
+		match s with
+		| nil => nil
+		| _ :: nil => nil
+		| _ :: _ :: nil => nil
+		| _ :: _ :: _ :: nil => nil
+		| _ :: _ :: _ :: _ :: s => s
+		end.
+Definition pop_qword (s : Stack) : Stack :=
+		match s with
+		| nil => nil
+		| _ :: nil => nil
+		| _ :: _ :: nil => nil
+		| _ :: _ :: _ :: nil => nil
+		| _ :: _ :: _ :: _ :: nil => nil
+		| _ :: _ :: _ :: _ :: _ :: nil => nil
+		| _ :: _ :: _ :: _ :: _ :: _ :: nil => nil
+		| _ :: _ :: _ :: _ :: _ :: _ :: _ :: nil => nil
+		| _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: s => s
+		end.
+
+(* Top *)
+Definition top_byte (s : Stack) : Byte :=
+		match s with
+		| nil => 0
+		| b :: s => b
+		end.
+Compute top_byte (push_word nil (nat_to_word 10)).
+Definition top_word (s : Stack) : Word :=
+		match s with
+		| nil => 0
+		| b :: nil => word b 0
+		| b1 :: b2 :: s => word b1 b2
+		end.
+Definition top_dword (s : Stack) : DWord :=
+		match s with
+		| nil => 0
+		| b :: nil => dword (word b 0) (word 0 0)
+		| b1 :: b2 :: nil => dword (word b1 b2) (word 0 0)
+		| b1 :: b2 :: b3 :: nil => dword (word b1 b2) (word b3 0)
+		| b1 :: b2 :: b3 :: b4 :: s => dword (word b1 b2) (word b3 b4)
+		end.
+Definition top_qword (s : Stack) : QWord :=
+		match s with
+		| nil => 0
+		| b :: nil => qword (dword (word b 0) (word 0 0))
+										    (dword (word 0 0) (word 0 0))
+		| b1 :: b2 :: nil => qword (dword (word b1 b2) (word 0 0))
+															 (dword (word 0 0) (word 0 0))
+		| b1 :: b2 :: b3 :: nil => qword (dword (word b1 b2) (word b3 0))
+																		 (dword (word 0 0) (word 0 0))
+		| b1 :: b2 :: b3 :: b4 :: nil => qword (dword (word b1 b2) (word b3 b4))
+																					 (dword (word 0 0) (word 0 0))
+		| b1 :: b2 :: b3 :: b4 :: b5 :: nil => qword (dword (word b1 b2) (word b3 b4))
+																								 (dword (word b5 0) (word 0 0))
+		| b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: nil => qword (dword (word b1 b2) (word b3 b4))
+																											 (dword (word b5 b6) (word 0 0))
+		| b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: nil => qword (dword (word b1 b2) (word b3 b4))
+																															(dword (word b5 b6) (word b7 0))
+		| b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: b8 :: s => qword (dword (word b1 b2) (word b3 b4))
+																																 (dword (word b5 b6) (word b7 b8))
+		end.
+
+(* Vars and Vals *)
+
 Inductive Var :=
 | reg : Reg -> Var
 | str : string -> Var.
@@ -376,6 +476,9 @@ Notation "'qword' 'ptr'" := S8 (at level 2).
 Check bit ptr.
 Check byte ptr.
 Check word ptr 10.
+
+
+(* Environment *)
 
 Definition Env := Var -> Scale -> Val.
 Compute Scale_eq_dec S0 S0.
@@ -450,6 +553,9 @@ Compute env4 EAX S0.
 
 Compute val_to_nat (env2 "x" S0).
 
+
+(* Memory *)
+
 Inductive MemEnv :=
 | envvar : Env -> Var -> MemEnv.
 Notation "V // E" := (envvar E V)(at level 19).
@@ -457,14 +563,14 @@ Notation "V // E" := (envvar E V)(at level 19).
 Inductive Exp :=
 | esequence : Exp -> Exp
 | const : Z -> Exp
-| v : MemEnv -> Exp
+| memenv : MemEnv -> Exp
 | sum : Exp -> Exp -> Exp
 | dif : Exp -> Exp -> Exp
 | mul : Exp -> Exp -> Exp
 | div : Exp -> Exp -> Exp.
 
 Coercion const : Z >-> Exp.
-Coercion v : MemEnv >-> Exp.
+Coercion memenv : MemEnv >-> Exp.
 
 Notation "'[' E ']'" := (esequence E) (at level 21).
 Notation "E1 +' E2" := (sum E1 E2)(at level 20).
@@ -476,7 +582,7 @@ Check ["x"//env1 +' "x"//env1].
 
 Definition Memory := Exp -> QWord.
 
-Definition Stack := list Byte.
+
 Inductive Any := register (r : Reg) | val (v : Val) | exp (e : Exp).
 Coercion register : Reg >-> Any.
 Coercion val : Val >-> Any.
@@ -637,3 +743,12 @@ Check (mov EAX dword ptr (10+0x00FF00FF)).
 Check nop ; nop ; mov EAX EIP; def "x" word ptr; ADD "x" word ptr 10.
 
 
+Inductive St :=
+| instruction_s : Instruction -> St.
+Coercion instruction_s : Instruction >-> St.
+
+Definition State := St -> Val.
+Definition st0 : State :=
+	fun (s : St) => null.
+Check st0.
+Compute st0 op_nop.
