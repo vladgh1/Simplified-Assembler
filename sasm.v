@@ -4,6 +4,7 @@ Local Open Scope Z_scope.
 Open Scope list_scope.
 
 Inductive Bit := false | true.
+Scheme Equality for Bit.
 Definition bit (n : Z) : Bit :=
 		match n with
 		| 0 => false
@@ -63,6 +64,7 @@ Definition eqbit (b1 b2 : Bit) : Bit :=
 Inductive Byte : Set := byte (_ _ _ _ _ _ _ _ : Bit).
 Definition zero := byte 0 0 0 0 0 0 0 0.
 Definition one := byte 0 0 0 0 0 0 0 1.
+Scheme Equality for Byte.
 
 Definition rshift (a : Byte) :=
 		match a with
@@ -161,6 +163,7 @@ Compute byte_to_nat n.
 
 Inductive Word :=
 | word : Byte -> Byte -> Word.
+Scheme Equality for Word.
 
 Definition word_to_nat (w : Word) : Z :=
 		match w with
@@ -211,6 +214,7 @@ Definition xnandword (w1 w2 : Word) : Word :=
 
 Inductive DWord :=
 | dword : Word -> Word -> DWord.
+Scheme Equality for DWord.
 
 Definition dword_to_nat (d : DWord) : Z :=
 		match d with
@@ -261,6 +265,7 @@ Definition xnanddword (d1 d2 : DWord) : DWord :=
 
 Inductive QWord :=
 | qword : DWord -> DWord -> QWord.
+Scheme Equality for QWord.
 
 Definition qword_to_nat (d : QWord) : Z :=
 		match d with
@@ -433,6 +438,7 @@ Definition top_qword (s : Stack) : QWord :=
 																																 (dword (word b5 b6) (word b7 b8))
 		end.
 
+
 (* Vars and Vals *)
 
 Inductive Var :=
@@ -556,21 +562,21 @@ Compute val_to_nat (env2 "x" S0).
 
 (* Memory *)
 
-Inductive MemEnv :=
-| envvar : Env -> Var -> MemEnv.
+Inductive MemExp :=
+| envvar : Env -> Var -> MemExp.
 Notation "V // E" := (envvar E V)(at level 19).
 
 Inductive Exp :=
 | esequence : Exp -> Exp
 | const : Z -> Exp
-| memenv : MemEnv -> Exp
+| memexp : MemExp -> Exp
 | sum : Exp -> Exp -> Exp
 | dif : Exp -> Exp -> Exp
 | mul : Exp -> Exp -> Exp
 | div : Exp -> Exp -> Exp.
 
 Coercion const : Z >-> Exp.
-Coercion memenv : MemEnv >-> Exp.
+Coercion memexp : MemExp >-> Exp.
 
 Notation "'[' E ']'" := (esequence E) (at level 21).
 Notation "E1 +' E2" := (sum E1 E2)(at level 20).
@@ -580,7 +586,7 @@ Notation "E1 /' E2" := (div E1 E2)(at level 20).
 
 Check ["x"//env1 +' "x"//env1].
 
-Definition Memory := Exp -> QWord.
+Definition Memory := MemExp -> Val.
 
 
 Inductive Any := register (r : Reg) | val (v : Val) | exp (e : Exp).
@@ -741,6 +747,22 @@ Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
 Check (mov EAX EBX).
 Check (mov EAX dword ptr (10+0x00FF00FF)).
 Check nop ; nop ; mov EAX EIP; def "x" word ptr; ADD "x" word ptr 10.
+
+
+(* Instruction Pointer *)
+
+Definition IPointer := QWord -> Instruction.
+Definition ip0 := fun (q : QWord) => nop.
+Compute ip0 (nat_to_qword 10).
+
+Definition IAddInstr (q : QWord)(p : IPointer)(i : Instruction) : IPointer :=
+		fun (q' : QWord) =>
+		  if (QWord_eq_dec q q')
+			then i
+			else (p q').
+Definition ip1 := IAddInstr (nat_to_qword 0) ip0 (mov EAX EBX).
+Compute ip1 0.
+
 
 
 Inductive St :=
