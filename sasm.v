@@ -764,6 +764,20 @@ Definition ip1 := IAddInstr (nat_to_qword 0) ip0 (mov EAX EBX).
 Compute ip1 0.
 
 
+(* Labels pointer *)
+
+Definition LPointer := string -> Z.
+Definition lp0 := fun (l : string) => -1.
+Compute lp0 "f".
+Definition LAddLabel (s : string)(l : LPointer)(i : Z) :=
+		fun (s' : string) =>
+			if (string_beq s s')
+			then i
+			else (l s').
+Definition lp1 := LAddLabel "_main" lp0 10.
+Compute lp1 "_main".
+Compute lp1 "_while".
+
 
 Inductive St :=
 | instruction_s : Instruction -> St.
