@@ -484,7 +484,7 @@ Check byte ptr.
 Check word ptr 10.
 
 
-(* Environment *)
+(* Environment (For memory usage) *)
 
 Definition Env := Var -> Scale -> Val.
 Compute Scale_eq_dec S0 S0.
@@ -522,38 +522,38 @@ Definition val_to_nat (v : Val) : Z :=
 		| qwordval n => qword_to_nat n
 		end.
 
-Definition initialize (env : Env) (v : Var) (s : Scale) : Env :=
+Definition e_init (env : Env) (v : Var) (s : Scale) : Env :=
 		fun (y : Var) (s1 : Scale) =>
 			if (Var_eq_dec v y)
 			then if (Val_eq_dec (env y s) null)
 				then nat_to_val 0 s
 				else (env v s)
 			else (env y s).
-Definition update (env : Env) (v : Var) (x : Z) : Env :=
+Definition e_update (env : Env) (v : Var) (x : Z) : Env :=
 		fun (y : Var) (s : Scale) =>
 		  if (Var_eq_dec v y)
 			then if (Val_eq_dec (env y s) null)
 				then null
 				else nat_to_val x (envScale env v)
 			else env y s.
-Definition deinitialize (env : Env) (v : Var) : Env :=
+Definition e_free (env : Env) (v : Var) : Env :=
 		fun (y : Var) (s : Scale) =>
 			if (Var_eq_dec y v)
 			then null
 			else env y s.
 
 Compute env0 EAX S0.
-Definition env1 := initialize env0 EAX S8.
+Definition env1 := e_init env0 EAX S8.
 Compute env1 EAX S0.
 Compute env1 "x" S0.
-Definition env2 := update env1 EAX (0xFFFFFFFF).
+Definition env2 := e_update env1 EAX (0xFFFFFFFF).
 Compute env2 EAX S0.
 Compute env2 "x" S0.
-Definition env21 := initialize env2 "x" S1.
-Definition env3 := update env21 "x" 0x0001.
+Definition env21 := e_init env2 "x" S1.
+Definition env3 := e_update env21 "x" 0x0001.
 Compute env3 "x" S0.
 Compute env3 EAX S0.
-Definition env4 := deinitialize env3 EAX.
+Definition env4 := e_free env3 EAX.
 Compute env4 "x" S0.
 Compute env4 EAX S0.
 
@@ -562,31 +562,70 @@ Compute val_to_nat (env2 "x" S0).
 
 (* Memory *)
 
-Inductive MemExp :=
-| envvar : Env -> Var -> MemExp.
-Notation "V // E" := (envvar E V)(at level 19).
-
 Inductive Exp :=
-| esequence : Exp -> Exp
-| const : Z -> Exp
-| memexp : MemExp -> Exp
-| sum : Exp -> Exp -> Exp
-| dif : Exp -> Exp -> Exp
-| mul : Exp -> Exp -> Exp
-| div : Exp -> Exp -> Exp.
+| e_const : Z -> Exp
+| e_var : Var -> Exp
+| e_sum : Exp -> Exp -> Exp
+| e_dif : Exp -> Exp -> Exp
+| e_mul : Exp -> Exp -> Exp
+| e_div : Exp -> Exp -> Exp.
 
-Coercion const : Z >-> Exp.
-Coercion memexp : MemExp >-> Exp.
+Coercion e_const : Z >-> Exp.
+Coercion e_var : Var >-> Exp.
 
-Notation "'[' E ']'" := (esequence E) (at level 21).
-Notation "E1 +' E2" := (sum E1 E2)(at level 20).
-Notation "E1 -' E2" := (dif E1 E2)(at level 20).
-Notation "E1 *' E2" := (mul E1 E2)(at level 20).
-Notation "E1 /' E2" := (div E1 E2)(at level 20).
+Notation "E1 +' E2" := (e_sum E1 E2)(at level 20).
+Notation "E1 -' E2" := (e_dif E1 E2)(at level 20).
+Notation "E1 *' E2" := (e_mul E1 E2)(at level 20).
+Notation "E1 /' E2" := (e_div E1 E2)(at level 20).
 
-Check ["x"//env1 +' "x"//env1].
+Fixpoint e_eval (e : Exp)(env : Env) : QWord :=
+		match e with
+		| e_const n => n
+		| e_var v => val_to_nat (env v S1)
+		| e_sum e1 e2 => qword_to_nat (e_eval e1 env) + qword_to_nat (e_eval e2 env)
+		| e_dif e1 e2 => qword_to_nat (e_eval e1 env) - qword_to_nat (e_eval e2 env)
+		| e_mul e1 e2 => qword_to_nat (e_eval e1 env) * qword_to_nat (e_eval e2 env)
+		| e_div e1 e2 => qword_to_nat (e_eval e1 env) / qword_to_nat (e_eval e2 env)
+		end.
 
-Definition Memory := MemExp -> Val.
+Compute env3 EAX S0.
+Compute (e_eval ("x" *' "x" +' 10 -' 5 +' EAX) env3).
+
+Definition Memory := QWord -> Val.
+Definition mem0 : Memory :=
+		fun (mem : QWord) => nat_to_val 0 SN.
+Check mem0 10.
+Compute mem0 (e_eval ("x" *' "x" +' 10 -' 5 +' EAX) env3).
+
+
+Definition m_init (mem : Memory) (q : QWord) (v : Val) : Memory :=
+		fun (q' : QWord) =>
+			if (QWord_eq_dec q q')
+			then if (Val_eq_dec (mem q) null)
+				then v
+				else nat_to_val 0 SN
+			else (mem q').
+Definition mem1 := m_init mem0 100 (nat_to_val 0xFFFF S8).
+Compute mem1 100.
+
+Definition m_update (mem : Memory) (q : QWord) (v : Val) : Memory :=
+		fun (q' : QWord) =>
+		  if (QWord_eq_dec q q')
+			then if (Val_eq_dec (mem q) null)
+				then nat_to_val 0 SN
+				else v
+			else (mem q').
+Definition mem2 := m_update mem1 100 (nat_to_val 0xFF S4).
+Compute mem2 100.
+
+Definition m_free (mem : Memory) (q : QWord) : Memory :=
+		fun (q' : QWord) =>
+			if (QWord_eq_dec q q')
+			then nat_to_val 0 SN
+			else mem q'.
+Definition mem3 := m_free mem2 100.
+Compute mem3 100.
+
 
 
 Inductive Any := register (r : Reg) | val (v : Val) | exp (e : Exp).
