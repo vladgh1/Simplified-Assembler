@@ -221,15 +221,20 @@ Definition xnandword (w1 w2 : Word) : Word :=
 		| word b1 b2, word b1' b2' => word (xnandbyte b1 b1') (xnandbyte b2 b2')
 		end.
 
-Definition sumword (b1 b2 : Word) : Word :=
-		nat_to_word (word_to_nat b1 + word_to_nat b2).
-Definition difword (b1 b2 : Word) : Word :=
-		nat_to_word (word_to_nat b1 - word_to_nat b2).
-Definition mulword (b1 b2 : Word) : Word :=
-		nat_to_word (word_to_nat b1 * word_to_nat b2).
-Definition divword (b1 b2 : Word) : Word :=
-		nat_to_word (word_to_nat b1 / word_to_nat b2).
+Compute nat_to_word 0xFF.
+Compute word_to_nat 0xFF.
+Definition sumword (w1 w2 : Word) : Word :=
+		nat_to_word (word_to_nat w1 + word_to_nat w2).
+Definition difword (w1 w2 : Word) : Word :=
+		nat_to_word (word_to_nat w1 - word_to_nat w2).
+Definition mulword (w1 w2 : Word) : Word :=
+		nat_to_word (word_to_nat w1 * word_to_nat w2).
+Definition divword (w1 w2 : Word) : Word :=
+		nat_to_word (word_to_nat w1 / word_to_nat w2).
 Compute sumword 5 5.
+Compute difword 5 6.
+Compute mulword 5 2.
+Compute divword 10 5.
 
 (*
  * DWord (Double Word) - 32 Bits
@@ -281,6 +286,14 @@ Definition xnanddword (d1 d2 : DWord) : DWord :=
 		| dword w1 w2, dword w1' w2' => dword (xnandword w1 w1') (xnandword w2 w2')
 		end.
 
+Definition sumdword (d1 d2 : DWord) : DWord :=
+		nat_to_dword (dword_to_nat d1 + dword_to_nat d2).
+Definition difdword (d1 d2 : DWord) : DWord :=
+		nat_to_dword (dword_to_nat d1 - dword_to_nat d2).
+Definition muldword (d1 d2 : DWord) : DWord :=
+		nat_to_dword (dword_to_nat d1 * dword_to_nat d2).
+Definition divdword (d1 d2 : DWord) : DWord :=
+		nat_to_dword (dword_to_nat d1 / dword_to_nat d2).
 
 (*
  * QWord (Quad Word) - 64 Bits
@@ -331,6 +344,15 @@ Definition xnandqword (q1 q2 : QWord) : QWord :=
 		match q1, q2 with
 		| qword d1 d2, qword d1' d2' => qword (xnanddword d1 d1') (xnanddword d2 d2')
 		end.
+
+Definition sumqword (q1 q2 : QWord) : QWord :=
+		nat_to_qword (qword_to_nat q1 + qword_to_nat q2).
+Definition difqword (q1 q2 : QWord) : QWord :=
+		nat_to_qword (qword_to_nat q1 - qword_to_nat q2).
+Definition mulqword (q1 q2 : QWord) : QWord :=
+		nat_to_qword (qword_to_nat q1 * qword_to_nat q2).
+Definition divqword (q1 q2 : QWord) : QWord :=
+		nat_to_qword (qword_to_nat q1 / qword_to_nat q2).
 
 (*
  * EFLAGS
