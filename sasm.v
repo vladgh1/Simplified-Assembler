@@ -672,16 +672,26 @@ Definition mem3 := m_free mem2 100.
 Compute mem3 100.
 
 
-
-Inductive Any := register (r : Reg) | val (v : Val) | exp (e : Exp).
-Coercion register : Reg >-> Any.
+Inductive Any := var (v : Var) | val (v : Val) | exp (e : Exp).
+Coercion var : Var >-> Any.
 Coercion val : Val >-> Any.
+
+Definition a_eval (a : Any)(env : Env) : Z :=
+		match a with
+		| var v => val_to_nat (env v S0)
+		| val v => val_to_nat v
+		| exp e => qword_to_nat (e_eval e env)
+		end.
 
 Inductive Instruction :=
 | sequence : Instruction -> Instruction -> Instruction
+| lsequence : string -> Instruction -> Instruction
 
 | op_nop : Instruction
+| op_end : Instruction
 | op_mov : Var -> Any -> Instruction
+
+
 | op_add : Var -> Any -> Instruction
 | op_sub : Var -> Any -> Instruction
 | op_mul : Var -> Any -> Instruction
@@ -715,7 +725,6 @@ Inductive Instruction :=
 
 | op_push : Var -> Instruction
 | op_pop : Var -> Instruction
-| op_fun : string -> Instruction
 | op_call : string -> Instruction
 | op_ret : Instruction
 
@@ -730,9 +739,11 @@ Inductive Instruction :=
 | op_jle : string -> Instruction
 .
 
-Notation "A ';' B" := (sequence A B) (at level 10).
+Notation "A ';' B" := (sequence A B) (at level 9, right associativity).
+Notation "A ':' B" := (lsequence A B) (at level 9, right associativity).
 Notation "'nop'" := (op_nop)(at level 6).
 Notation "'mov' A B" := (op_mov A B)(at level 6, A, B at level 5).
+
 Notation "'add' A B" := (op_add A B)(at level 6, A, B at level 5).
 Notation "'sub' A B" := (op_sub A B)(at level 6, A, B at level 5).
 Notation "'mul' A B" := (op_mul A B)(at level 6, A, B at level 5).
@@ -762,13 +773,12 @@ Notation "'xor' A B" := (op_xor A B)(at level 6, A, B at level 5).
 Notation "'xnor' A B" := (op_xnor A B)(at level 6, A, B at level 5).
 
 Notation "'def' A S" := (op_def A S)(at level 6, A, S at level 5).
-Notation "'free' A S" := (op_free A S)(at level 6, A, S at level 5).
+Notation "'free' A" := (op_free A)(at level 6, A at level 5).
 
 Notation "'push' A" := (op_push A)(at level 6, A at level 5).
 Notation "'pop' A" := (op_pop A)(at level 6, A at level 5).
-Notation "'fun' A" := (op_sub A)(at level 6, A at level 5).
-Notation "'call' A" := (op_mul A)(at level 6, A at level 5).
-Notation "'ret' A" := (op_div A)(at level 6, A at level 5).
+Notation "'call' A" := (op_call A)(at level 6, A at level 5).
+Notation "'ret'" := (op_ret)(at level 6).
 
 Notation "A ':' " := (op_label A)(at level 55).
 Notation "'cmp' A B" := (op_cmp A B)(at level 6, A, B at level 5).
@@ -815,9 +825,8 @@ Notation "'FREE' A S" := (op_free A S)(at level 6, A, S at level 5).
 
 Notation "'PUSH' A" := (op_push A)(at level 6, A at level 5).
 Notation "'POP' A" := (op_pop A)(at level 6, A at level 5).
-Notation "'FUN' A" := (op_sub A)(at level 6, A at level 5).
-Notation "'CALL' A" := (op_mul A)(at level 6, A at level 5).
-Notation "'RET' A" := (op_div A)(at level 6, A at level 5).
+Notation "'CALL' A" := (op_call A)(at level 6, A at level 5).
+Notation "'RET'" := (op_ret)(at level 6).
 
 Notation "'CMP' A B" := (op_cmp A B)(at level 6, A, B at level 5).
 Notation "'TEST' A B" := (op_test A B)(at level 6, A, B at level 5).
@@ -832,11 +841,10 @@ Check (mov EAX EBX).
 Check (mov EAX dword ptr (10+0x00FF00FF)).
 Check nop ; nop ; mov EAX EIP; def "x" word ptr; ADD "x" word ptr 10.
 
-
 (* Instruction Pointer *)
 
 Definition IPointer := QWord -> Instruction.
-Definition ip0 := fun (q : QWord) => nop.
+Definition ip0 := fun (q : QWord) => op_end.
 Compute ip0 (nat_to_qword 10).
 
 Definition IAddInstr (q : QWord)(p : IPointer)(i : Instruction) : IPointer :=
@@ -853,19 +861,141 @@ Compute ip1 0.
 Definition LPointer := string -> Z.
 Definition lp0 := fun (l : string) => -1.
 Compute lp0 "f".
-Definition LAddLabel (s : string)(l : LPointer)(i : Z) :=
+Definition LAddLabel (l : LPointer)(s : string)(i : Z) :=
 		fun (s' : string) =>
 			if (string_beq s s')
 			then i
 			else (l s').
-Definition lp1 := LAddLabel "_main" lp0 10.
+Definition lp1 := LAddLabel lp0 "_main" 10.
 Compute lp1 "_main".
 Compute lp1 "_while".
 
 
-Inductive St :=
-| instruction_s : Instruction -> St.
-Coercion instruction_s : Instruction >-> St.
+Compute mem2 100.
+Compute env2 EAX S0.
+Compute ip1 0.
+Compute lp1 "_main".
+
+Inductive State := state : Memory -> Env -> IPointer -> LPointer -> State.
+Definition s0 := state mem0 env0 ip0 lp0.
+Definition s1 := state mem2 env2 ip1 lp1.
+
+Definition s_mem (s : State) : Memory :=
+		match s with
+		| state m e ip lp => m
+		end.
+Definition s_env (s : State) : Env :=
+		match s with
+		| state m e ip lp => e
+		end.
+Definition s_ip (s : State) : IPointer :=
+		match s with
+		| state m e ip lp => ip
+		end.
+Definition s_lp (s : State) : LPointer :=
+		match s with
+		| state m e ip lp => lp
+		end.
+
+Compute (s_mem s1) 100.
+Compute (s_env s1) EAX S0.
+Compute (s_ip s1) 0.
+Compute (s_lp s1) "_main".
+
+
+Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
+		match s with
+		| state m e ip lp =>
+			match i with
+			| sequence s1 s2 => makeState (makeState s s1 q) s2 (sumqword q 1)
+			| lsequence s1 s2 => makeState (state m e (IAddInstr q ip (op_label s1)) (LAddLabel lp s1 (qword_to_nat q))) s2 (sumqword q 1)
+			| op_mov a1 a2 => state m e (IAddInstr q ip (op_mov a1 a2)) lp
+			| op_nop => state m e (IAddInstr q ip (op_nop)) lp
+			| op_end => s
+
+			| op_add a1 a2 => state m e (IAddInstr q ip (op_add a1 a2)) lp
+			| op_sub a1 a2 => state m e (IAddInstr q ip (op_sub a1 a2)) lp
+			| op_mul a1 a2 => state m e (IAddInstr q ip (op_mul a1 a2)) lp
+			| op_div a1 a2 => state m e (IAddInstr q ip (op_sub a1 a2)) lp
+
+			| op_inc a => state m e (IAddInstr q ip (op_inc a)) lp
+			| op_dec a => state m e (IAddInstr q ip (op_dec a)) lp
+			| op_xchg a1 a2 => state m e (IAddInstr q ip (op_xchg a1 a2)) lp
+			
+			| op_shr a => state m e (IAddInstr q ip (op_shr a)) lp
+			| op_shl a => state m e (IAddInstr q ip (op_shl a)) lp
+			| op_sar a => state m e (IAddInstr q ip (op_sar a)) lp
+			| op_sal a => state m e (IAddInstr q ip (op_sal a)) lp
+			| op_ror a => state m e (IAddInstr q ip (op_ror a)) lp
+			| op_rol a => state m e (IAddInstr q ip (op_rol a)) lp
+			| op_not a => state m e (IAddInstr q ip (op_not a)) lp
+			| op_neg a => state m e (IAddInstr q ip (op_neg a)) lp
+			
+			| op_and a1 a2 => state m e (IAddInstr q ip (op_and a1 a2)) lp
+			| op_nand a1 a2 => state m e (IAddInstr q ip (op_nand a1 a2)) lp
+			| op_xand a1 a2 => state m e (IAddInstr q ip (op_xand a1 a2)) lp
+			| op_xnand a1 a2 => state m e (IAddInstr q ip (op_xnand a1 a2)) lp
+			| op_or a1 a2 => state m e (IAddInstr q ip (op_or a1 a2)) lp
+			| op_nor a1 a2 => state m e (IAddInstr q ip (op_nor a1 a2)) lp
+			| op_xor a1 a2 => state m e (IAddInstr q ip (op_xor a1 a2)) lp
+			| op_xnor a1 a2 => state m e (IAddInstr q ip (op_xnor a1 a2)) lp
+			
+			| op_def v s => state m e (IAddInstr q ip (op_def v s)) lp
+			| op_free v => state m e (IAddInstr q ip (op_free v)) lp
+
+			| op_push a => state m e (IAddInstr q ip (op_push a)) lp
+			| op_pop a => state m e (IAddInstr q ip (op_pop a)) lp
+			| op_call a => state m e (IAddInstr q ip (op_call a)) lp
+			| op_ret => state m e (IAddInstr q ip (op_ret)) lp
+			
+			| op_label a => state m e (IAddInstr q ip (op_label a)) (LAddLabel lp a (qword_to_nat q))
+			| op_cmp a1 a2 => state m e (IAddInstr q ip (op_cmp a1 a2)) lp
+			| op_test a1 a2 => state m e (IAddInstr q ip (op_test a1 a2)) lp
+			| op_jmp a => state m e (IAddInstr q ip (op_jmp a)) lp
+			| op_jne a => state m e (IAddInstr q ip (op_jne a)) lp
+			| op_jg a => state m e (IAddInstr q ip (op_jg a)) lp
+			| op_jge a => state m e (IAddInstr q ip (op_jge a)) lp
+			| op_jl a => state m e (IAddInstr q ip (op_jl a)) lp
+			| op_jle a => state m e (IAddInstr q ip (op_jle a)) lp
+			end
+		end.
+
+Compute sumqword (nat_to_qword 0) 2.
+
+Definition p0 :=
+(
+"fun":
+mov EAX ECX;
+ret;
+
+"_main":
+mov EAX EBX;
+ADD EAX dword ptr 10;
+def "x" word ptr;
+mov "x" AX;
+xor EDX EDX;
+
+"_for":
+mov ECX "x";
+dec "x";
+cmp "x" EDX;
+jg "_for";
+call "fun"
+).
+Definition s0' := makeState s0 p0 0.
+Compute (s_ip s0') 9.
+
+Fixpoint makeStep (st : State)(q : QWord) : State :=
+		match st with
+		| state m e ip lp q =>
+			match ip q with
+			| sequence s1 s2 => makeStep (makeStep (state m e ip lp q) q+1)
+			| op_nop => makeStep (state m e ip lp (sumqword q 1))
+			| op_mov a1 a2 => makeStep (state m (e_update e a1 (a_eval a2 e)) ip lp (sumqword q 1))
+			end
+		end.
+
+Check s_step (s_setup mem2 env2 ip1 lp1 0).
 
 Definition State := St -> Val.
 Definition st0 : State :=
