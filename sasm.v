@@ -66,24 +66,43 @@ Definition zero := byte 0 0 0 0 0 0 0 0.
 Definition one := byte 0 0 0 0 0 0 0 1.
 Scheme Equality for Byte.
 
-Definition rshift (a : Byte) :=
+(* Byte Shift Operations *)
+Definition rshiftbyte (a : Byte) : Byte :=
 		match a with
 		| byte a1 a2 a3 a4 a5 a6 a7 a8 => byte 0 a1 a2 a3 a4 a5 a6 a7
 		end.
-Definition lshift (a : Byte) :=
+Definition lshiftbyte (a : Byte) : Byte :=
 		match a with
 		| byte a1 a2 a3 a4 a5 a6 a7 a8 => byte a2 a3 a4 a5 a6 a7 a8 0
 		end.
 
-Definition rrot (a : Byte) :=
+Definition rashiftbyte (a : Byte) : Byte :=
+		match a with
+		| byte a1 a2 a3 a4 a5 a6 a7 a8 => byte a1 0 a2 a3 a4 a5 a6 a7
+		end.
+Definition lashiftbyte (a : Byte) : Byte :=
+		match a with
+		| byte a1 a2 a3 a4 a5 a6 a7 a8 => byte a1 a3 a4 a5 a6 a7 a8 0
+		end.
+
+Definition rrotbyte (a : Byte) : Byte :=
 		match a with
 		| byte a1 a2 a3 a4 a5 a6 a7 a8 => byte a8 a1 a2 a3 a4 a5 a6 a7
 		end.
-Definition lrot (a : Byte) :=
+Definition lrotbyte (a : Byte) : Byte :=
 		match a with
 		| byte a1 a2 a3 a4 a5 a6 a7 a8 => byte a2 a3 a4 a5 a6 a7 a8 a1
 		end.
 
+(* Byte Not Operation *)
+Definition notbyte (b : Byte) : Byte :=
+		match b with
+		| byte a1 a2 a3 a4 a5 a6 a7 a8 =>
+		byte (notbit a1) (notbit a2) (notbit a3) (notbit a4)
+				 (notbit a5) (notbit a6) (notbit a7) (notbit a8)
+		end.
+
+(* Byte Or Operations *)
 Definition orbyte (b1 b2 : Byte) : Byte :=
 		match b1, b2 with
 			byte a1 a2 a3 a4 a5 a6 a7 a8, byte a1' a2' a3' a4' a5' a6' a7' a8' =>
@@ -105,6 +124,7 @@ Definition xnorbyte (b1 b2 : Byte) : Byte :=
 				byte (xnorbit a1 a1') (xnorbit a2 a2') (xnorbit a3 a3') (xnorbit a4 a4') (xnorbit a5 a5') (xnorbit a6 a6') (xnorbit a7 a7') (xnorbit a8 a8')
 		end.
 
+(* Byte And Operations *)
 Definition andbyte (b1 b2 : Byte) : Byte :=
 		match b1, b2 with
 			byte a1 a2 a3 a4 a5 a6 a7 a8, byte a1' a2' a3' a4' a5' a6' a7' a8' =>
@@ -187,6 +207,47 @@ Definition nat_to_word (n : Z) : Word :=
 		word (nat_to_byte (n / 2 ^ 8)) (nat_to_byte (n mod 2 ^ 8)).
 Coercion nat_to_word : Z >-> Word.
 
+(* Word Not Operation *)
+Definition notword (a : Word) : Word :=
+		match a with
+		| word a1 a2 => word (notbyte a1) (notbyte a2)
+		end.
+
+(* Word Shift Operations *)
+Definition rshiftword (a : Word) : Word :=
+		match a with
+		| word (byte a1 a2 a3 a4 a5 a6 a7 a8) (byte a9 a10 a11 a12 a13 a14 a15 a16)
+			=> word (byte 0 a1 a2 a3 a4 a5 a6 a7) (byte a8 a9 a10 a11 a12 a13 a14 a15)
+		end.
+Definition lshiftword (a : Word) : Word :=
+		match a with
+		| word (byte a1 a2 a3 a4 a5 a6 a7 a8) (byte a9 a10 a11 a12 a13 a14 a15 a16)
+			=> word (byte a2 a3 a4 a5 a6 a7 a8 a9) (byte a10 a11 a12 a13 a14 a15 a16 0)
+		end.
+
+Definition rashiftword (a : Word) : Word :=
+		match a with
+		| word (byte a1 a2 a3 a4 a5 a6 a7 a8) (byte a9 a10 a11 a12 a13 a14 a15 a16)
+			=> word (byte a1 0 a2 a3 a4 a5 a6 a7) (byte a8 a9 a10 a11 a12 a13 a14 a15)
+		end.
+Definition lashiftword (a : Word) : Word :=
+		match a with
+		| word (byte a1 a2 a3 a4 a5 a6 a7 a8) (byte a9 a10 a11 a12 a13 a14 a15 a16)
+			=> word (byte a1 a3 a4 a5 a6 a7 a8 a9) (byte a10 a11 a12 a13 a14 a15 a16 0)
+		end.
+
+Definition rrotword (a : Word) : Word :=
+		match a with
+		| word (byte a1 a2 a3 a4 a5 a6 a7 a8) (byte a9 a10 a11 a12 a13 a14 a15 a16)
+			=> word (byte a16 a1 a2 a3 a4 a5 a6 a7) (byte a8 a9 a10 a11 a12 a13 a14 a15)
+		end.
+Definition lrotword (a : Word) : Word :=
+		match a with
+		| word (byte a1 a2 a3 a4 a5 a6 a7 a8) (byte a9 a10 a11 a12 a13 a14 a15 a16)
+			=> word (byte a2 a3 a4 a5 a6 a7 a8 a9) (byte a10 a11 a12 a13 a14 a15 a16 a1)
+		end.
+
+(* Word Or Operations *)
 Definition orword (w1 w2 : Word) : Word :=
 		match w1, w2 with
 		| word b1 b2, word b1' b2' => word (orbyte b1 b1') (orbyte b2 b2')
@@ -204,6 +265,7 @@ Definition xnorword (w1 w2 : Word) : Word :=
 		| word b1 b2, word b1' b2' => word (xnorbyte b1 b1') (xnorbyte b2 b2')
 		end.
 
+(* Word And Operations *)
 Definition andword (w1 w2 : Word) : Word :=
 		match w1, w2 with
 		| word b1 b2, word b1' b2' => word (andbyte b1 b1') (andbyte b2 b2')
@@ -252,6 +314,89 @@ Definition nat_to_dword (n : Z) : DWord :=
 		dword (nat_to_word (n / 2 ^ 16)) (nat_to_word (n mod 2 ^ 16)).
 Coercion nat_to_dword : Z >-> DWord.
 
+(* Double Word Not Operation *)
+Definition dwordword (a : DWord) : DWord :=
+		match a with
+		| dword a1 a2 => dword (notword a1) (notword a2)
+		end.
+
+(* Double Word Shift operations *)
+Definition rshiftdword (a : DWord) : DWord :=
+		match a with
+		| dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+									(byte a9 a10 a11 a12 a13 a14 a15 a16))
+						(word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+									(byte a25 a26 a27 a28 a29 a30 a31 a32))
+			=> dword (word (byte 0 a1 a2 a3 a4 a5 a6 a7)
+										 (byte a8 a9 a10 a11 a12 a13 a14 a15))
+							 (word (byte a16 a17 a18 a19 a20 a21 a22 a23)
+										 (byte a24 a25 a26 a27 a28 a29 a30 a31))
+		end.
+Definition lshiftdword (a : DWord) : DWord :=
+		match a with
+		| dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+						(byte a9 a10 a11 a12 a13 a14 a15 a16))
+			(word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+						(byte a25 a26 a27 a28 a29 a30 a31 a32))
+			=> dword (word (byte a2 a3 a4 a5 a6 a7 a8 a9)
+									 	 (byte a10 a11 a12 a13 a14 a15 a16 a17))
+							 (word (byte a18 a19 a20 a21 a22 a23 a24 a15)
+										 (byte a26 a27 a28 a29 a30 a31 a32 0))
+		end.
+
+Definition rashiftdword (a : DWord) : DWord :=
+		match a with
+		| dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+									(byte a9 a10 a11 a12 a13 a14 a15 a16))
+						(word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+									(byte a25 a26 a27 a28 a29 a30 a31 a32))
+			=> dword (word (byte a1 0 a2 a3 a4 a5 a6 a7)
+										 (byte a8 a9 a10 a11 a12 a13 a14 a15))
+							 (word (byte a16 a17 a18 a19 a20 a21 a22 a23)
+										 (byte a24 a25 a26 a27 a28 a29 a30 a31))
+		end.
+Definition lashiftdword (a : DWord) : DWord :=
+		match a with
+		| dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+						(byte a9 a10 a11 a12 a13 a14 a15 a16))
+			(word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+						(byte a25 a26 a27 a28 a29 a30 a31 a32))
+			=> dword (word (byte a1 a3 a4 a5 a6 a7 a8 a9)
+									 	 (byte a10 a11 a12 a13 a14 a15 a16 a17))
+							 (word (byte a18 a19 a20 a21 a22 a23 a24 a15)
+										 (byte a26 a27 a28 a29 a30 a31 a32 0))
+		end.
+
+Definition rrotdword (a : DWord) : DWord :=
+		match a with
+		| dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+									(byte a9 a10 a11 a12 a13 a14 a15 a16))
+						(word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+									(byte a25 a26 a27 a28 a29 a30 a31 a32))
+			=> dword (word (byte a32 a1 a2 a3 a4 a5 a6 a7)
+										(byte a8 a9 a10 a11 a12 a13 a14 a15))
+							(word (byte a16 a17 a18 a19 a20 a21 a22 a23)
+										(byte a24 a25 a26 a27 a28 a29 a30 a31))
+		end.
+Definition lrotdword (a : DWord) : DWord :=
+		match a with
+		| dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+									(byte a9 a10 a11 a12 a13 a14 a15 a16))
+						(word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+									(byte a25 a26 a27 a28 a29 a30 a31 a32))
+			=> dword (word (byte a2 a3 a4 a5 a6 a7 a8 a9)
+										 (byte a10 a11 a12 a13 a14 a15 a16 a17))
+							 (word (byte a18 a19 a20 a21 a22 a23 a24 a15)
+										 (byte a26 a27 a28 a29 a30 a31 a32 a1))
+		end.
+
+(* Double Word Not Operation *)
+Definition notdword (d : DWord) : DWord :=
+		match d with
+		| dword w1 w2 => dword (notword w1) (notword w2)
+		end.
+
+(* Double Word Or Operations *)
 Definition ordword (d1 d2 : DWord) : DWord :=
 		match d1, d2 with
 		| dword w1 w2, dword w1' w2' => dword (orword w1 w1') (orword w2 w2')
@@ -269,6 +414,7 @@ Definition xnordword (d1 d2 : DWord) : DWord :=
 		| dword w1 w2, dword w1' w2' => dword (xnorword w1 w1') (xnorword w2 w2')
 		end.
 
+(* Double Word And Operations *)
 Definition anddword (d1 d2 : DWord) : DWord :=
 		match d1, d2 with
 		| dword w1 w2, dword w1' w2' => dword (andword w1 w1') (andword w2 w2')
@@ -311,6 +457,92 @@ Definition nat_to_qword (n : Z) : QWord :=
 		qword (nat_to_dword (n / 2 ^ 32)) (nat_to_dword (n mod 2 ^ 32)).
 Coercion nat_to_qword : Z >-> QWord.
 
+(* Quad Word Shift operations *)
+Definition rshiftqword (a : QWord) : QWord :=
+		match a with
+		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+												 (byte a9 a10 a11 a12 a13 a14 a15 a16))
+									 (word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+												 (byte a25 a26 a27 a28 a29 a30 a31 a32)))
+						(dword (word (byte a33 a34 a35 a36 a37 a38 a39 a40)
+												 (byte a41 a42 a43 a44 a45 a46 a47 a48))
+									 (word (byte a49 a50 a51 a52 a53 a54 a55 a56)
+												 (byte a57 a58 a59 a60 a61 a62 a63 a64)))
+			=> qword (dword (word (byte 0 a1 a2 a3 a4 a5 a6 a7)
+														(byte a8 a9 a10 a11 a12 a13 a14 a15))
+											(word (byte a16 a17 a18 a19 a20 a21 a22 a23)
+														(byte a24 a25 a26 a27 a28 a29 a30 a31)))
+							 (dword (word (byte a32 a33 a34 a35 a36 a37 a38 a39)
+														(byte a40 a41 a42 a43 a44 a45 a46 a47))
+											(word (byte a48 a49 a50 a51 a52 a53 a54 a55)
+														(byte a56 a57 a58 a59 a60 a61 a62 a63)))
+		end.
+Definition lshiftqword (a : QWord) : QWord :=
+		match a with
+		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+												 (byte a9 a10 a11 a12 a13 a14 a15 a16))
+									 (word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+												 (byte a25 a26 a27 a28 a29 a30 a31 a32)))
+						(dword (word (byte a33 a34 a35 a36 a37 a38 a39 a40)
+												 (byte a41 a42 a43 a44 a45 a46 a47 a48))
+									 (word (byte a49 a50 a51 a52 a53 a54 a55 a56)
+												 (byte a57 a58 a59 a60 a61 a62 a63 a64)))
+			=> qword (dword (word (byte a2 a3 a4 a5 a6 a7 a8 a9)
+														(byte a10 a11 a12 a13 a14 a15 a16 a17))
+											(word (byte a18 a19 a20 a21 a22 a23 a24 a25)
+														(byte a26 a27 a28 a29 a30 a31 a32 a33)))
+							 (dword (word (byte a34 a35 a36 a37 a38 a39 a40 a41)
+														(byte a42 a43 a44 a45 a46 a47 a48 a49))
+											(word (byte a50 a51 a52 a53 a54 a55 a56 a57)
+														(byte a58 a59 a60 a61 a62 a63 a64 0)))
+		end.
+
+Definition rrotqword (a : QWord) : QWord :=
+		match a with
+		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+												 (byte a9 a10 a11 a12 a13 a14 a15 a16))
+									 (word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+												 (byte a25 a26 a27 a28 a29 a30 a31 a32)))
+						(dword (word (byte a33 a34 a35 a36 a37 a38 a39 a40)
+												 (byte a41 a42 a43 a44 a45 a46 a47 a48))
+									 (word (byte a49 a50 a51 a52 a53 a54 a55 a56)
+												 (byte a57 a58 a59 a60 a61 a62 a63 a64)))
+			=> qword (dword (word (byte a64 a1 a2 a3 a4 a5 a6 a7)
+														(byte a8 a9 a10 a11 a12 a13 a14 a15))
+											(word (byte a16 a17 a18 a19 a20 a21 a22 a23)
+														(byte a24 a25 a26 a27 a28 a29 a30 a31)))
+							 (dword (word (byte a32 a33 a34 a35 a36 a37 a38 a39)
+														(byte a40 a41 a42 a43 a44 a45 a46 a47))
+											(word (byte a48 a49 a50 a51 a52 a53 a54 a55)
+														(byte a56 a57 a58 a59 a60 a61 a62 a63)))
+		end.
+Definition lrotqword (a : QWord) : QWord :=
+		match a with
+		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+												 (byte a9 a10 a11 a12 a13 a14 a15 a16))
+									 (word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+												 (byte a25 a26 a27 a28 a29 a30 a31 a32)))
+						(dword (word (byte a33 a34 a35 a36 a37 a38 a39 a40)
+												 (byte a41 a42 a43 a44 a45 a46 a47 a48))
+									 (word (byte a49 a50 a51 a52 a53 a54 a55 a56)
+												 (byte a57 a58 a59 a60 a61 a62 a63 a64)))
+			=> qword (dword (word (byte a2 a3 a4 a5 a6 a7 a8 a9)
+														(byte a10 a11 a12 a13 a14 a15 a16 a17))
+											(word (byte a18 a19 a20 a21 a22 a23 a24 a25)
+														(byte a26 a27 a28 a29 a30 a31 a32 a33)))
+							 (dword (word (byte a34 a35 a36 a37 a38 a39 a40 a41)
+														(byte a42 a43 a44 a45 a46 a47 a48 a49))
+											(word	(byte a50 a51 a52 a53 a54 a55 a56 a57)
+														(byte a58 a59 a60 a61 a62 a63 a64 a1)))
+		end.
+
+(* Double Word Not Operation *)
+Definition notqword (q : QWord) : QWord :=
+		match q with
+		| qword d1 d2 => qword (notdword d1) (notdword d2)
+		end.
+
+(* Quad Word Or Operations *)
 Definition orqword (q1 q2 : QWord) : QWord :=
 		match q1, q2 with
 		| qword d1 d2, qword d1' d2' => qword (ordword d1 d1') (ordword d2 d2')
@@ -328,6 +560,7 @@ Definition xnorqword (q1 q2 : QWord) : QWord :=
 		| qword d1 d2, qword d1' d2' => qword (xnordword d1 d1') (xnordword d2 d2')
 		end.
 
+(* Quad Word And Operations *)
 Definition andqword (q1 q2 : QWord) : QWord :=
 		match q1, q2 with
 		| qword d1 d2, qword d1' d2' => qword (anddword d1 d1') (anddword d2 d2')
@@ -372,7 +605,6 @@ Inductive EFLAGS :=
  * REGISTERS
  *)
 
-Inductive XCHGReg := XCHGR.
 Inductive ByteReg := AH | AL | BH | BL | CH | CL | DH | DL.
 Inductive WordReg := AX | BX | CX | DX | SI | DI | BP.
 Inductive DWordReg := EAX | EBX | ECX | EDX | ESI | EDI | EBP.
@@ -507,6 +739,144 @@ Notation "'byte' 'ptr' A" := (byteval A)(at level 2, A at level 1).
 Notation "'word' 'ptr' A" := (wordval A)(at level 2, A at level 1).
 Notation "'dword' 'ptr' A" := (dwordval A)(at level 2, A at level 1).
 
+(* Val Shift Operations *)
+Definition lshiftval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval 0
+		| byteval b => byteval (lshiftbyte b)
+		| wordval w => wordval (lshiftword w)
+		| dwordval d => dwordval (lshiftdword d)
+		| qwordval q => qwordval (lshiftqword q)
+		end.
+Definition rshiftval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval 0
+		| byteval b => byteval (rshiftbyte b)
+		| wordval w => wordval (rshiftword w)
+		| dwordval d => dwordval (rshiftdword d)
+		| qwordval q => qwordval (rshiftqword q)
+		end.
+Definition lrotval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval b
+		| byteval b => byteval (lrotbyte b)
+		| wordval w => wordval (lrotword w)
+		| dwordval d => dwordval (lrotdword d)
+		| qwordval q => qwordval (lrotqword q)
+		end.
+Definition rrotval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval b
+		| byteval b => byteval (rrotbyte b)
+		| wordval w => wordval (rrotword w)
+		| dwordval d => dwordval (rrotdword d)
+		| qwordval q => qwordval (rrotqword q)
+		end.
+
+(* Val Not Operation *)
+Definition notval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval (notbit b)
+		| byteval b => byteval (notbyte b)
+		| wordval w => wordval (notword w)
+		| dwordval d => dwordval (notdword d)
+		| qwordval q => qwordval (notqword q)
+		end.
+
+(* Val And Operations *)
+Definition andval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (andbit b1 b2)
+		| byteval b1, byteval b2 => byteval (andbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (andword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (anddword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (andqword q1 q2)
+		| _, _ => null
+		end.
+Definition nandval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (nandbit b1 b2)
+		| byteval b1, byteval b2 => byteval (nandbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (nandword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (nanddword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (nandqword q1 q2)
+		| _, _ => null
+		end.
+Definition xandval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (xandbit b1 b2)
+		| byteval b1, byteval b2 => byteval (xandbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (xandword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (xanddword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (xandqword q1 q2)
+		| _, _ => null
+		end.
+Definition xnandval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (xnandbit b1 b2)
+		| byteval b1, byteval b2 => byteval (xnandbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (xnandword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (xnanddword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (xnandqword q1 q2)
+		| _, _ => null
+		end.
+
+(* Val Or Operations *)
+Definition orval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (orbit b1 b2)
+		| byteval b1, byteval b2 => byteval (orbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (orword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (ordword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (orqword q1 q2)
+		| _, _ => null
+		end.
+Definition norval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (norbit b1 b2)
+		| byteval b1, byteval b2 => byteval (norbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (norword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (nordword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (norqword q1 q2)
+		| _, _ => null
+		end.
+Definition xorval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (xorbit b1 b2)
+		| byteval b1, byteval b2 => byteval (xorbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (xorword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (xordword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (xorqword q1 q2)
+		| _, _ => null
+		end.
+Definition xnorval (v1 : Val)(v2 : Val) : Val :=
+		match v1, v2 with
+		| null, null => null
+		| bitval b1, bitval b2 => bitval (xnorbit b1 b2)
+		| byteval b1, byteval b2 => byteval (xnorbyte b1 b2)
+		| wordval w1, wordval w2 => wordval (xnorword w1 w2)
+		| dwordval d1, dwordval d2 => dwordval (xnordword d1 d2)
+		| qwordval q1, qwordval q2 => qwordval (xnorqword q1 q2)
+		| _, _ => null
+		end.
+Compute andval (bit ptr 1) (bit ptr 0).
+Compute andval (bit ptr 1) (bit ptr 1).
+Compute andval (byte ptr 0xFF) (byte ptr 0xF0).
+Compute andval (dword ptr 0xFFFFFF) (dword ptr 0xF000FF).
+
+
 Inductive Scale := SN | S0 | S1 | S2 | S4 | S8.
 Scheme Equality for Scale.
 Definition nat_to_scale (n : Z) : Scale :=
@@ -531,13 +901,20 @@ Check word ptr 10.
 
 (* Environment (For memory usage) *)
 
-Definition Env := Var -> Scale -> Val.
+Inductive VarExt :=
+| var_ext : Var -> VarExt
+| eflg_ext : EFLAGS -> VarExt.
+Coercion var_ext : Var >-> VarExt.
+Coercion eflg_ext : EFLAGS >-> VarExt.
+Scheme Equality for VarExt.
+
+Definition Env := VarExt -> Scale -> Val.
 Compute Scale_eq_dec S0 S0.
 Definition env0 : Env :=
-	fun (v : Var)(s : Scale) => null.
+	fun (v : VarExt)(s : Scale) => null.
 Compute env0 EAX S8.
 
-Definition envScale (env : Env) (v : Var) : Scale :=
+Definition envScale (env : Env) (v : VarExt) : Scale :=
 		match env v S0 with
 		| null => SN
 		| bitval b => S0
@@ -567,23 +944,23 @@ Definition val_to_nat (v : Val) : Z :=
 		| qwordval n => qword_to_nat n
 		end.
 
-Definition e_init (env : Env) (v : Var) (s : Scale) : Env :=
-		fun (y : Var) (s1 : Scale) =>
-			if (Var_eq_dec v y)
+Definition e_init (env : Env) (v : VarExt) (s : Scale) : Env :=
+		fun (y : VarExt) (s1 : Scale) =>
+			if (VarExt_eq_dec v y)
 			then if (Val_eq_dec (env y s) null)
 				then nat_to_val 0 s
 				else (env v s)
 			else (env y s).
-Definition e_update (env : Env) (v : Var) (x : Z) : Env :=
-		fun (y : Var) (s : Scale) =>
-		  if (Var_eq_dec v y)
+Definition e_update (env : Env) (v : VarExt) (x : Z) : Env :=
+		fun (y : VarExt) (s : Scale) =>
+		  if (VarExt_eq_dec v y)
 			then if (Val_eq_dec (env y s) null)
 				then null
 				else nat_to_val x (envScale env v)
 			else env y s.
-Definition e_free (env : Env) (v : Var) : Env :=
-		fun (y : Var) (s : Scale) =>
-			if (Var_eq_dec y v)
+Definition e_free (env : Env) (v : VarExt) : Env :=
+		fun (y : VarExt) (s : Scale) =>
+			if (VarExt_eq_dec y v)
 			then null
 			else env y s.
 
@@ -691,7 +1068,6 @@ Inductive Instruction :=
 | op_end : Instruction
 | op_mov : Var -> Any -> Instruction
 
-
 | op_add : Var -> Any -> Instruction
 | op_sub : Var -> Any -> Instruction
 | op_mul : Var -> Any -> Instruction
@@ -710,7 +1086,7 @@ Inductive Instruction :=
 | op_rol : Var -> Instruction
 | op_not : Var -> Instruction
 | op_neg : Var -> Instruction
-
+(*
 | op_and : Var -> Any -> Instruction
 | op_nand : Var -> Any -> Instruction
 | op_xand : Var -> Any -> Instruction
@@ -728,7 +1104,6 @@ Inductive Instruction :=
 | op_call : string -> Instruction
 | op_ret : Instruction
 
-| op_label : string -> Instruction
 | op_cmp : Var -> Var -> Instruction
 | op_test : Var -> Var -> Instruction
 | op_jmp : string -> Instruction
@@ -736,7 +1111,7 @@ Inductive Instruction :=
 | op_jg : string -> Instruction
 | op_jge : string -> Instruction
 | op_jl : string -> Instruction
-| op_jle : string -> Instruction
+| op_jle : string -> Instruction*)
 .
 
 Notation "A ';' B" := (sequence A B) (at level 9, right associativity).
@@ -762,7 +1137,7 @@ Notation "'ror' A" := (op_ror A)(at level 6, A at level 5).
 Notation "'rol' A" := (op_rol A)(at level 6, A at level 5).
 Notation "'not' A" := (op_not A)(at level 6, A at level 5).
 Notation "'neg' A" := (op_neg A)(at level 6, A at level 5).
-
+(*
 Notation "'and' A B" := (op_and A B)(at level 6, A, B at level 5).
 Notation "'nand' A B" := (op_nand A B)(at level 6, A, B at level 5).
 Notation "'xand' A B" := (op_xand A B)(at level 6, A, B at level 5).
@@ -780,7 +1155,6 @@ Notation "'pop' A" := (op_pop A)(at level 6, A at level 5).
 Notation "'call' A" := (op_call A)(at level 6, A at level 5).
 Notation "'ret'" := (op_ret)(at level 6).
 
-Notation "A ':' " := (op_label A)(at level 55).
 Notation "'cmp' A B" := (op_cmp A B)(at level 6, A, B at level 5).
 Notation "'test' A B" := (op_test A B)(at level 6, A, B at level 5).
 Notation "'jmp' A" := (op_jmp A)(at level 6, A at level 5).
@@ -840,7 +1214,7 @@ Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
 Check (mov EAX EBX).
 Check (mov EAX dword ptr (10+0x00FF00FF)).
 Check nop ; nop ; mov EAX EIP; def "x" word ptr; ADD "x" word ptr 10.
-
+*)
 (* Instruction Pointer *)
 
 Definition IPointer := QWord -> Instruction.
@@ -908,7 +1282,7 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 		| state m e ip lp =>
 			match i with
 			| sequence s1 s2 => makeState (makeState s s1 q) s2 (sumqword q 1)
-			| lsequence s1 s2 => makeState (state m e (IAddInstr q ip (op_label s1)) (LAddLabel lp s1 (qword_to_nat q))) s2 (sumqword q 1)
+			| lsequence s1 s2 => makeState (state m e ip (LAddLabel lp s1 (qword_to_nat q))) s2 q
 			| op_mov a1 a2 => state m e (IAddInstr q ip (op_mov a1 a2)) lp
 			| op_nop => state m e (IAddInstr q ip (op_nop)) lp
 			| op_end => s
@@ -916,12 +1290,12 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_add a1 a2 => state m e (IAddInstr q ip (op_add a1 a2)) lp
 			| op_sub a1 a2 => state m e (IAddInstr q ip (op_sub a1 a2)) lp
 			| op_mul a1 a2 => state m e (IAddInstr q ip (op_mul a1 a2)) lp
-			| op_div a1 a2 => state m e (IAddInstr q ip (op_sub a1 a2)) lp
+			| op_div a1 a2 => state m e (IAddInstr q ip (op_div a1 a2)) lp
 
 			| op_inc a => state m e (IAddInstr q ip (op_inc a)) lp
 			| op_dec a => state m e (IAddInstr q ip (op_dec a)) lp
 			| op_xchg a1 a2 => state m e (IAddInstr q ip (op_xchg a1 a2)) lp
-			
+
 			| op_shr a => state m e (IAddInstr q ip (op_shr a)) lp
 			| op_shl a => state m e (IAddInstr q ip (op_shl a)) lp
 			| op_sar a => state m e (IAddInstr q ip (op_sar a)) lp
@@ -930,7 +1304,7 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_rol a => state m e (IAddInstr q ip (op_rol a)) lp
 			| op_not a => state m e (IAddInstr q ip (op_not a)) lp
 			| op_neg a => state m e (IAddInstr q ip (op_neg a)) lp
-			
+(*		
 			| op_and a1 a2 => state m e (IAddInstr q ip (op_and a1 a2)) lp
 			| op_nand a1 a2 => state m e (IAddInstr q ip (op_nand a1 a2)) lp
 			| op_xand a1 a2 => state m e (IAddInstr q ip (op_xand a1 a2)) lp
@@ -948,7 +1322,6 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_call a => state m e (IAddInstr q ip (op_call a)) lp
 			| op_ret => state m e (IAddInstr q ip (op_ret)) lp
 			
-			| op_label a => state m e (IAddInstr q ip (op_label a)) (LAddLabel lp a (qword_to_nat q))
 			| op_cmp a1 a2 => state m e (IAddInstr q ip (op_cmp a1 a2)) lp
 			| op_test a1 a2 => state m e (IAddInstr q ip (op_test a1 a2)) lp
 			| op_jmp a => state m e (IAddInstr q ip (op_jmp a)) lp
@@ -956,12 +1329,12 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_jg a => state m e (IAddInstr q ip (op_jg a)) lp
 			| op_jge a => state m e (IAddInstr q ip (op_jge a)) lp
 			| op_jl a => state m e (IAddInstr q ip (op_jl a)) lp
-			| op_jle a => state m e (IAddInstr q ip (op_jle a)) lp
+			| op_jle a => state m e (IAddInstr q ip (op_jle a)) lp*)
 			end
 		end.
 
 Compute sumqword (nat_to_qword 0) 2.
-
+(*
 Definition p0 :=
 (
 "fun":
@@ -983,22 +1356,149 @@ jg "_for";
 call "fun"
 ).
 Definition s0' := makeState s0 p0 0.
-Compute (s_ip s0') 9.
+Compute (s_ip s0') 7.
+Compute (s_lp s0') "_for".
+*)
 
-Fixpoint makeStep (st : State)(q : QWord) : State :=
-		match st with
-		| state m e ip lp q =>
-			match ip q with
-			| sequence s1 s2 => makeStep (makeStep (state m e ip lp q) q+1)
-			| op_nop => makeStep (state m e ip lp (sumqword q 1))
-			| op_mov a1 a2 => makeStep (state m (e_update e a1 (a_eval a2 e)) ip lp (sumqword q 1))
+Definition env_aux0 := e_init env0 EAX S4.
+Definition env_aux1 := e_init env_aux0 EBX S4.
+Definition env_aux2 := e_init env_aux1 ECX S4.
+Definition env_aux3 := e_init env_aux2 EDX S4.
+
+Definition env_aux4 := e_init env_aux3 AX S2.
+Definition env_aux5 := e_init env_aux4 BX S2.
+Definition env_aux6 := e_init env_aux5 CX S2.
+Definition env_aux7 := e_init env_aux6 DX S2.
+
+Definition env_aux8 := e_init env_aux7 AH S1.
+Definition env_aux9 := e_init env_aux8 BH S1.
+Definition env_aux10 := e_init env_aux9 CH S1.
+Definition env_aux11 := e_init env_aux10 DH S1.
+
+Definition env_aux12 := e_init env_aux11 AL S1.
+Definition env_aux13 := e_init env_aux12 BL S1.
+Definition env_aux14 := e_init env_aux13 CL S1.
+Definition env_aux15 := e_init env_aux14 DL S1.
+
+Definition env_aux16 := e_init env_aux15 ESI S4.
+Definition env_aux17 := e_init env_aux16 EDI S4.
+Definition env_aux18 := e_init env_aux17 EBP S4.
+Definition env_aux19 := e_init env_aux18 ESP S4.
+Definition env_aux20 := e_init env_aux19 EIP S4.
+
+Definition env_aux21 := e_init env_aux20 SI S2.
+Definition env_aux22 := e_init env_aux21 DI S2.
+Definition env_aux23 := e_init env_aux22 BP S2.
+Definition env_aux24 := e_init env_aux23 SP S2.
+
+Definition env_aux25 := e_init env_aux24 CF S0.
+Definition env_aux26 := e_init env_aux25 PF S0.
+Definition env_aux27 := e_init env_aux26 AF S0.
+Definition env_aux28 := e_init env_aux27 ZF S0.
+Definition env_aux29 := e_init env_aux28 SF S0.
+Definition env_aux30 := e_init env_aux29 OF S0.
+
+Definition env := env_aux30.
+Definition mem := mem0.
+Definition ip := ip0.
+Definition lp := lp0.
+
+
+Inductive Gas :=
+| O : Gas
+| G : Gas -> Gas.
+
+Local Open Scope nat.
+Fixpoint nat_to_gas (n : nat) : Gas :=
+		match n with
+		| 0 => O
+		| S n' => G (nat_to_gas n')
+		end.
+Compute nat_to_gas 10.
+
+Local Open Scope Z_scope.
+Compute env3 "x" S0.
+Definition e := e_update env3 "x" 10.
+Fixpoint eval (s : State)(q : QWord)(gas : Gas) : State :=
+		match gas with
+		| O => s
+		| G gas' =>
+			match s with
+			| state m e ip lp =>
+				match (s_ip s) q with
+				| sequence s1 s2 => s
+				| lsequence s1 s2 => s
+				| op_end => s
+				| op_nop => eval s (sumqword q 1) (gas')
+
+				| op_mov a1 a2 => eval (state m (e_update e a1 (a_eval a2 e)) ip lp) (sumqword q 1) (gas')
+				| op_add a1 a2 => eval (state m
+					(e_update e a1 (a_eval a1 e + a_eval a2 e))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_sub a1 a2 => eval (state m
+					(e_update e a1 (a_eval a1 e - a_eval a2 e))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_mul a1 a2 => eval (state m
+					(e_update e a1 (a_eval a1 e * a_eval a2 e))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_div a1 a2 => eval (state m
+					(e_update e a1 (a_eval a1 e / a_eval a2 e))
+					ip lp) (sumqword q 1) (gas')
+				
+				| op_inc a => eval (state m (e_update e a (a_eval a e + 1)) ip lp) (sumqword q 1) (gas')
+				| op_dec a => eval (state m (e_update e a (a_eval a e - 1)) ip lp) (sumqword q 1) (gas')
+				| op_xchg a1 a2 => eval (state m
+					(e_update (e_update e a1 (a_eval a2 e)) a2 (a_eval a1 e))
+					ip lp) (sumqword q 1) (gas')
+				
+				| op_shr a => eval (state m
+					(e_update e a (val_to_nat (rshiftval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_shl a => eval (state m
+					(e_update e a (val_to_nat (lshiftval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_sar a => eval (state m
+					(e_update e a (val_to_nat (rshiftval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_sal a => eval (state m
+					(e_update e a (val_to_nat (lshiftval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_ror a => eval (state m
+					(e_update e a (val_to_nat (rrotval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_rol a => eval (state m
+					(e_update e a (val_to_nat (lrotval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_not a => eval (state m
+					(e_update e a (val_to_nat (notval (nat_to_val (a_eval a e) (envScale e a)))))
+					ip lp) (sumqword q 1) (gas')
+
+				| op_neg a => eval (state m
+					(e_update e a (-a_eval a e))
+					ip lp) (sumqword q 1) (gas')
+				end
 			end
 		end.
 
-Check s_step (s_setup mem2 env2 ip1 lp1 0).
+Definition prg0 := (
+mov EAX dword ptr 10;
+mul EAX EAX;
+mov EBX EAX;
+sub EAX dword ptr 2;
+div EBX dword ptr 2;
+dec EBX;
+mov EBX dword ptr 10;
+not EBX
+).
 
-Definition State := St -> Val.
-Definition st0 : State :=
-	fun (s : St) => null.
-Check st0.
-Compute st0 op_nop.
+Definition st' := eval (makeState (state mem env ip lp) prg0 0) 0 (nat_to_gas 1000).
+Compute val_to_nat ((s_env st') EBX S0).
