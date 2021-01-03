@@ -588,9 +588,13 @@ Definition divqword (q1 q2 : QWord) : QWord :=
 		nat_to_qword (qword_to_nat q1 / qword_to_nat q2).
 
 (*
- * EFLAGS
+ * FLAGS
  *)
 
+Inductive CFLAGS :=
+| EF (* Equal Flag *)
+| GF (* Greater Flag *)
+.
 Inductive EFLAGS :=
 | CF (* Carry flag *)
 | PF (* Parity flag: 1 if even numbers of 1 *)
@@ -686,34 +690,34 @@ Definition top_word (s : Stack) : Word :=
 		match s with
 		| nil => 0
 		| b :: nil => word b 0
-		| b1 :: b2 :: s => word b1 b2
+		| b2 :: b1 :: s => word b1 b2
 		end.
 Definition top_dword (s : Stack) : DWord :=
 		match s with
 		| nil => 0
 		| b :: nil => dword (word b 0) (word 0 0)
-		| b1 :: b2 :: nil => dword (word b1 b2) (word 0 0)
-		| b1 :: b2 :: b3 :: nil => dword (word b1 b2) (word b3 0)
-		| b1 :: b2 :: b3 :: b4 :: s => dword (word b1 b2) (word b3 b4)
+		| b2 :: b1 :: nil => dword (word b1 b2) (word 0 0)
+		| b3 :: b2 :: b1 :: nil => dword (word b1 b2) (word b3 0)
+		| b4 :: b3 :: b2 :: b1 :: s => dword (word b1 b2) (word b3 b4)
 		end.
 Definition top_qword (s : Stack) : QWord :=
 		match s with
 		| nil => 0
 		| b :: nil => qword (dword (word b 0) (word 0 0))
 										    (dword (word 0 0) (word 0 0))
-		| b1 :: b2 :: nil => qword (dword (word b1 b2) (word 0 0))
+		| b2 :: b1 :: nil => qword (dword (word b1 b2) (word 0 0))
 															 (dword (word 0 0) (word 0 0))
-		| b1 :: b2 :: b3 :: nil => qword (dword (word b1 b2) (word b3 0))
+		| b3 :: b2 :: b1 :: nil => qword (dword (word b1 b2) (word b3 0))
 																		 (dword (word 0 0) (word 0 0))
-		| b1 :: b2 :: b3 :: b4 :: nil => qword (dword (word b1 b2) (word b3 b4))
+		| b4 :: b3 :: b2 :: b1 :: nil => qword (dword (word b1 b2) (word b3 b4))
 																					 (dword (word 0 0) (word 0 0))
-		| b1 :: b2 :: b3 :: b4 :: b5 :: nil => qword (dword (word b1 b2) (word b3 b4))
+		| b5 :: b4 :: b3 :: b2 :: b1 :: nil => qword (dword (word b1 b2) (word b3 b4))
 																								 (dword (word b5 0) (word 0 0))
-		| b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: nil => qword (dword (word b1 b2) (word b3 b4))
+		| b6 :: b5 :: b4 :: b3 :: b2 :: b1 :: nil => qword (dword (word b1 b2) (word b3 b4))
 																											 (dword (word b5 b6) (word 0 0))
-		| b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: nil => qword (dword (word b1 b2) (word b3 b4))
+		| b7 :: b6 :: b5 :: b4 :: b3 :: b2 :: b1 :: nil => qword (dword (word b1 b2) (word b3 b4))
 																															(dword (word b5 b6) (word b7 0))
-		| b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: b8 :: s => qword (dword (word b1 b2) (word b3 b4))
+		| b8 :: b7 :: b6 :: b5 :: b4 :: b3 :: b2 :: b1 :: s => qword (dword (word b1 b2) (word b3 b4))
 																																 (dword (word b5 b6) (word b7 b8))
 		end.
 
@@ -934,9 +938,11 @@ Definition topval (s : Stack)(sc : Scale) : Val :=
 
 Inductive VarExt :=
 | var_ext : Var -> VarExt
-| eflg_ext : EFLAGS -> VarExt.
+| eflg_ext : EFLAGS -> VarExt
+| cflg_ext : CFLAGS -> VarExt.
 Coercion var_ext : Var >-> VarExt.
 Coercion eflg_ext : EFLAGS >-> VarExt.
+Coercion cflg_ext : CFLAGS >-> VarExt.
 Scheme Equality for VarExt.
 
 Definition Env := VarExt -> Scale -> Val.
@@ -1197,15 +1203,15 @@ Inductive Instruction :=
 | op_pop : Var -> Instruction
 | op_call : string -> Instruction
 | op_ret : Instruction
-(*
-| op_cmp : Var -> Var -> Instruction
-| op_test : Var -> Var -> Instruction
+
+| op_cmp : Any -> Any -> Instruction
+| op_test : Any -> Any -> Instruction
 | op_jmp : string -> Instruction
 | op_jne : string -> Instruction
 | op_jg : string -> Instruction
 | op_jge : string -> Instruction
 | op_jl : string -> Instruction
-| op_jle : string -> Instruction*)
+| op_jle : string -> Instruction
 .
 
 Notation "A ';' B" := (sequence A B) (at level 9, right associativity).
@@ -1250,7 +1256,7 @@ Notation "'pop' A" := (op_pop A)(at level 6, A at level 5).
 
 Notation "'call' A" := (op_call A)(at level 6, A at level 5).
 Notation "'ret'" := (op_ret)(at level 6).
-(*
+
 Notation "'cmp' A B" := (op_cmp A B)(at level 6, A, B at level 5).
 Notation "'test' A B" := (op_test A B)(at level 6, A, B at level 5).
 Notation "'jmp' A" := (op_jmp A)(at level 6, A at level 5).
@@ -1310,7 +1316,7 @@ Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
 Check (mov EAX EBX).
 Check (mov EAX dword ptr (10+0x00FF00FF)).
 Check nop ; nop ; mov EAX EIP; def "x" word ptr; ADD "x" word ptr 10.
-*)
+
 (* Instruction Pointer *)
 
 Definition IPointer := QWord -> Instruction.
@@ -1425,7 +1431,7 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_pop a => state m m' st e (IAddInstr q ip (op_pop a)) lp
 			| op_call a => state m m' st e (IAddInstr q ip (op_call a)) lp
 			| op_ret => state m m' st e (IAddInstr q ip (op_ret)) lp
-(*
+
 			| op_cmp a1 a2 => state m m' st e (IAddInstr q ip (op_cmp a1 a2)) lp
 			| op_test a1 a2 => state m m' st e (IAddInstr q ip (op_test a1 a2)) lp
 			| op_jmp a => state m m' st e (IAddInstr q ip (op_jmp a)) lp
@@ -1433,11 +1439,11 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_jg a => state m m' st e (IAddInstr q ip (op_jg a)) lp
 			| op_jge a => state m m' st e (IAddInstr q ip (op_jge a)) lp
 			| op_jl a => state m m' st e (IAddInstr q ip (op_jl a)) lp
-			| op_jle a => state m m' st e (IAddInstr q ip (op_jle a)) lp*)
+			| op_jle a => state m m' st e (IAddInstr q ip (op_jle a)) lp
 			end
 		end.
 
-(*
+
 Definition p0 :=
 (
 "fun":
@@ -1461,7 +1467,7 @@ call "fun"
 Definition s0' := makeState s0 p0 0.
 Compute (s_ip s0') 7.
 Compute (s_lp s0') "_for".
-*)
+
 
 Definition env_aux0 := e_init env0 EAX S4.
 Definition env_aux1 := e_init env_aux0 EBX S4.
@@ -1501,7 +1507,10 @@ Definition env_aux28 := e_init env_aux27 ZF S0.
 Definition env_aux29 := e_init env_aux28 SF S0.
 Definition env_aux30 := e_init env_aux29 OF S0.
 
-Definition env := env_aux30.
+Definition env_aux31 := e_init env_aux30 EF S0.
+Definition env_aux32 := e_init env_aux31 GF S0.
+
+Definition env := env_aux32.
 Definition mem := mem0.
 Definition map := map0.
 Definition stack := stack0.
@@ -1645,17 +1654,45 @@ Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 					ip lp) (sumqword q 1) (gas') (mp + 1)
 				| op_free a => eval (state m m' st e ip lp) (sumqword q 1) (gas') mp
 
-				| op_push a => eval (state m m' (pushval st (nat_to_val (a_eval a m m' e) (envScale e a))) e ip lp) (sumqword q 1) (gas') mp
+				| op_push a => eval (state m m'
+					(pushval st (nat_to_val (a_eval a m m' e) (envScale e a)))
+					e ip lp) (sumqword q 1) (gas') mp
 
 				| op_pop a => eval (state m m'
 					(popval st (envScale e a))
 					(e_update e a (val_to_nat (topval st (envScale e a)))) ip lp) (sumqword q 1) (gas') mp
 
-				| op_call f => eval (state m m' (push_qword st q) e ip lp) (lp f) (gas') mp
+				| op_call f => if (Z.gtb (lp f) 0) then
+					eval (state m m' (push_qword st q) e ip lp) (lp f) (gas') mp
+					else eval (state m m' (push_qword st q) e ip lp) (sumqword q 1) (gas') mp
 				| op_ret => eval (state m m' (pop_qword st) e ip lp) (sumqword (top_qword st) 1) (gas') mp
+
+				| op_cmp a1 a2 => eval (state m m' st
+					(e_update
+						(e_update e EF (if (Z.eqb (a_eval a1 m m' e) (a_eval a2 m m' e)) then 1 else 0))
+					GF (if (Z.gtb (a_eval a1 m m' e) (a_eval a2 m m' e)) then 1 else 0))
+					ip lp) (sumqword q 1) (gas') mp
+				| op_test a1 a2 => eval (state m m' st e ip lp) (sumqword q 1) (gas') mp
+				| op_jmp a => eval (state m m' st e ip lp) (lp a) (gas') mp
+				| op_jne a => eval (state m m' st e ip lp) (lp a) (gas') mp
+				| op_jg a => eval (state m m' st e ip lp) (lp a) (gas') mp
+				| op_jge a => eval (state m m' st e ip lp) (lp a) (gas') mp
+				| op_jl a => eval (state m m' st e ip lp) (lp a) (gas') mp
+				| op_jle a => eval (state m m' st e ip lp) (lp a) (gas') mp
 				end
 			end
 		end.
+(*Inductive CFLAGS :=
+| EF
+| GF.
+Inductive EFLAGS :=
+| CF (* Carry flag *)
+| PF (* Parity flag: 1 if even numbers of 1 *)
+| AF (* Auxiliary Carry flag *)
+| ZF (* Zero flag *)
+| SF (* Sign flag *)
+| OF (* Overflow flag *)
+.*)
 
 Definition prg0 :=
 mov EAX dword ptr 10;
@@ -1684,13 +1721,22 @@ Compute (s_mem st') 1.
 Compute (e_eval (a_eval ["x"] mem' map' env3) map' env3).
 
 Definition prg1 :=
+jmp "_main";
+
 "_fun":
 mov EAX dword ptr 10;
 ret;
+"_fun1":
+mov EAX dword ptr 11;
+ret;
 "_main":
-mov EAX dword ptr 1;
+mov EAX dword ptr 10;
 call "_fun";
+cmp EAX dword ptr 11;
 .
 
 Definition st'' := eval (makeState (state mem map stack env ip lp) prg1 0) 0 (nat_to_gas 1000) 1.
 Compute val_to_nat ((s_env st'') EAX S0).
+Compute val_to_nat ((s_env st'') EBX S0).
+Compute qword_to_nat (top_qword (s_stack st'')).
+Compute (s_env st'') GF S0.
