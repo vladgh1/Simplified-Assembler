@@ -1207,6 +1207,7 @@ Inductive Instruction :=
 | op_cmp : Any -> Any -> Instruction
 | op_test : Any -> Any -> Instruction
 | op_jmp : string -> Instruction
+| op_je : string -> Instruction
 | op_jne : string -> Instruction
 | op_jg : string -> Instruction
 | op_jge : string -> Instruction
@@ -1260,6 +1261,7 @@ Notation "'ret'" := (op_ret)(at level 6).
 Notation "'cmp' A B" := (op_cmp A B)(at level 6, A, B at level 5).
 Notation "'test' A B" := (op_test A B)(at level 6, A, B at level 5).
 Notation "'jmp' A" := (op_jmp A)(at level 6, A at level 5).
+Notation "'je' A" := (op_je A)(at level 6, A at level 5).
 Notation "'jne' A" := (op_jne A)(at level 6, A at level 5).
 Notation "'jg' A" := (op_jg A)(at level 6, A at level 5).
 Notation "'jge' A" := (op_jge A)(at level 6, A at level 5).
@@ -1307,6 +1309,7 @@ Notation "'RET'" := (op_ret)(at level 6).
 Notation "'CMP' A B" := (op_cmp A B)(at level 6, A, B at level 5).
 Notation "'TEST' A B" := (op_test A B)(at level 6, A, B at level 5).
 Notation "'JMP' A" := (op_jmp A)(at level 6, A at level 5).
+Notation "'JE' A" := (op_je A)(at level 6, A at level 5).
 Notation "'JNE' A" := (op_jne A)(at level 6, A at level 5).
 Notation "'JG' A" := (op_jg A)(at level 6, A at level 5).
 Notation "'JGE' A" := (op_jge A)(at level 6, A at level 5).
@@ -1435,6 +1438,7 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_cmp a1 a2 => state m m' st e (IAddInstr q ip (op_cmp a1 a2)) lp
 			| op_test a1 a2 => state m m' st e (IAddInstr q ip (op_test a1 a2)) lp
 			| op_jmp a => state m m' st e (IAddInstr q ip (op_jmp a)) lp
+			| op_je a => state m m' st e (IAddInstr q ip (op_je a)) lp
 			| op_jne a => state m m' st e (IAddInstr q ip (op_jne a)) lp
 			| op_jg a => state m m' st e (IAddInstr q ip (op_jg a)) lp
 			| op_jge a => state m m' st e (IAddInstr q ip (op_jge a)) lp
@@ -1672,13 +1676,29 @@ Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 						(e_update e EF (if (Z.eqb (a_eval a1 m m' e) (a_eval a2 m m' e)) then 1 else 0))
 					GF (if (Z.gtb (a_eval a1 m m' e) (a_eval a2 m m' e)) then 1 else 0))
 					ip lp) (sumqword q 1) (gas') mp
+
+				(* TODO *)
 				| op_test a1 a2 => eval (state m m' st e ip lp) (sumqword q 1) (gas') mp
+
 				| op_jmp a => eval (state m m' st e ip lp) (lp a) (gas') mp
-				| op_jne a => eval (state m m' st e ip lp) (lp a) (gas') mp
-				| op_jg a => eval (state m m' st e ip lp) (lp a) (gas') mp
-				| op_jge a => eval (state m m' st e ip lp) (lp a) (gas') mp
-				| op_jl a => eval (state m m' st e ip lp) (lp a) (gas') mp
-				| op_jle a => eval (state m m' st e ip lp) (lp a) (gas') mp
+
+				| op_je a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e EF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jne a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e EF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jg a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e GF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jge a => eval (state m m' st e ip lp)
+					(if (orb (Bit_beq (val_to_nat (e GF S0)) true) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jl a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e GF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jle a => eval (state m m' st e ip lp)
+					(if (orb (Bit_beq (val_to_nat (e GF S0)) false) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
 				end
 			end
 		end.
@@ -1728,15 +1748,16 @@ mov EAX dword ptr 10;
 ret;
 "_fun1":
 mov EAX dword ptr 11;
-ret;
+jmp "_l1";
 "_main":
-mov EAX dword ptr 10;
 call "_fun";
-cmp EAX dword ptr 11;
+
+"_l1":
+cmp EAX dword ptr 10;
+je "_fun1";
 .
 
 Definition st'' := eval (makeState (state mem map stack env ip lp) prg1 0) 0 (nat_to_gas 1000) 1.
 Compute val_to_nat ((s_env st'') EAX S0).
-Compute val_to_nat ((s_env st'') EBX S0).
 Compute qword_to_nat (top_qword (s_stack st'')).
 Compute (s_env st'') GF S0.
