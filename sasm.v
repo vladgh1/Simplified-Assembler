@@ -719,6 +719,7 @@ Definition top_qword (s : Stack) : QWord :=
 (* Vars and Vals *)
 
 Inductive Var :=
+| vnull
 | reg : Reg -> Var
 | str : string -> Var.
 Coercion reg : Reg >-> Var.
@@ -797,7 +798,7 @@ Definition andval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (andword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (anddword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (andqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Definition nandval (v1 : Val)(v2 : Val) : Val :=
 		match v1, v2 with
@@ -807,7 +808,7 @@ Definition nandval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (nandword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (nanddword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (nandqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Definition xandval (v1 : Val)(v2 : Val) : Val :=
 		match v1, v2 with
@@ -817,7 +818,7 @@ Definition xandval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (xandword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (xanddword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (xandqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Definition xnandval (v1 : Val)(v2 : Val) : Val :=
 		match v1, v2 with
@@ -827,7 +828,7 @@ Definition xnandval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (xnandword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (xnanddword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (xnandqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 
 (* Val Or Operations *)
@@ -839,7 +840,7 @@ Definition orval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (orword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (ordword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (orqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Definition norval (v1 : Val)(v2 : Val) : Val :=
 		match v1, v2 with
@@ -849,7 +850,7 @@ Definition norval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (norword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (nordword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (norqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Definition xorval (v1 : Val)(v2 : Val) : Val :=
 		match v1, v2 with
@@ -859,7 +860,7 @@ Definition xorval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (xorword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (xordword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (xorqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Definition xnorval (v1 : Val)(v2 : Val) : Val :=
 		match v1, v2 with
@@ -869,7 +870,7 @@ Definition xnorval (v1 : Val)(v2 : Val) : Val :=
 		| wordval w1, wordval w2 => wordval (xnorword w1 w2)
 		| dwordval d1, dwordval d2 => dwordval (xnordword d1 d2)
 		| qwordval q1, qwordval q2 => qwordval (xnorqword q1 q2)
-		| _, _ => null
+		| a, _ => a
 		end.
 Compute andval (bit ptr 1) (bit ptr 0).
 Compute andval (bit ptr 1) (bit ptr 1).
@@ -1013,41 +1014,80 @@ Fixpoint e_eval (e : Exp)(env : Env) : QWord :=
 Compute env3 EAX S0.
 Compute (e_eval ("x" *' "x" +' 10 -' 5 +' EAX) env3).
 
-Definition Memory := QWord -> Val.
+
+(* Memory *)
+
+Definition Memory := QWord -> Var.
 Definition mem0 : Memory :=
-		fun (mem : QWord) => nat_to_val 0 SN.
-Check mem0 10.
+		fun (q : QWord) => vnull.
+Check mem0 0.
+Compute mem0 0.
 Compute mem0 (e_eval ("x" *' "x" +' 10 -' 5 +' EAX) env3).
 
 
-Definition m_init (mem : Memory) (q : QWord) (v : Val) : Memory :=
+Definition mem_init (mem : Memory) (q : QWord) (v : Var) : Memory :=
 		fun (q' : QWord) =>
 			if (QWord_eq_dec q q')
-			then if (Val_eq_dec (mem q) null)
+			then if (Var_eq_dec (mem q) vnull)
 				then v
-				else nat_to_val 0 SN
+				else vnull
 			else (mem q').
-Definition mem1 := m_init mem0 100 (nat_to_val 0xFFFF S8).
+Definition mem1 := mem_init mem0 100 "x".
 Compute mem1 100.
 
-Definition m_update (mem : Memory) (q : QWord) (v : Val) : Memory :=
+Definition mem_update (mem : Memory) (q : QWord) (v : Var) : Memory :=
 		fun (q' : QWord) =>
 		  if (QWord_eq_dec q q')
-			then if (Val_eq_dec (mem q) null)
-				then nat_to_val 0 SN
+			then if (Var_eq_dec (mem q) vnull)
+				then vnull
 				else v
 			else (mem q').
-Definition mem2 := m_update mem1 100 (nat_to_val 0xFF S4).
+Definition mem2 := mem_update mem1 100 "y".
 Compute mem2 100.
 
-Definition m_free (mem : Memory) (q : QWord) : Memory :=
+Definition mem_free (mem : Memory) (q : QWord) : Memory :=
 		fun (q' : QWord) =>
 			if (QWord_eq_dec q q')
-			then nat_to_val 0 SN
+			then vnull
 			else mem q'.
-Definition mem3 := m_free mem2 100.
+Definition mem3 := mem_free mem2 100.
 Compute mem3 100.
 
+(* Map *)
+
+Definition Map := Var -> QWord.
+Definition map0 : Map :=
+		fun (s : Var) => 0.
+Compute map0 EAX.
+
+Definition map_init (map : Map) (q : QWord) (v : Var) : Map :=
+		fun (v' : Var) =>
+			if (Var_eq_dec v v')
+			then if (QWord_eq_dec (map v) 0)
+				then q
+				else (map v)
+			else (map v').
+Compute map0 "x".
+Definition map1 := map_init map0 10 "x".
+Compute map1 "x".
+
+Definition map_update (map : Map) (q : QWord) (v : Var) : Map :=
+		fun (v' : Var) =>
+		  if (Var_eq_dec v v')
+			then if (QWord_eq_dec (map v) 0)
+				then 0
+				else q
+			else (map v').
+Definition map2 := map_update map1 100 "x".
+Compute map2 "x".
+
+Definition map_free (map : Map) (v : Var) : Map :=
+		fun (v' : Var) =>
+			if (Var_eq_dec v v')
+			then 0
+			else map v'.
+Definition map3 := map_free map2 "x".
+Compute map3 "x".
 
 Inductive Any := var (v : Var) | val (v : Val) | exp (e : Exp).
 Coercion var : Var >-> Any.
@@ -1086,7 +1126,7 @@ Inductive Instruction :=
 | op_rol : Var -> Instruction
 | op_not : Var -> Instruction
 | op_neg : Var -> Instruction
-(*
+
 | op_and : Var -> Any -> Instruction
 | op_nand : Var -> Any -> Instruction
 | op_xand : Var -> Any -> Instruction
@@ -1096,9 +1136,9 @@ Inductive Instruction :=
 | op_xor : Var -> Any -> Instruction
 | op_xnor : Var -> Any -> Instruction
 
-| op_def : Var -> Scale -> Instruction
-| op_free : Var -> Instruction
-
+| op_def : string -> Scale -> Instruction
+| op_free : string -> Instruction
+(*
 | op_push : Var -> Instruction
 | op_pop : Var -> Instruction
 | op_call : string -> Instruction
@@ -1115,6 +1155,7 @@ Inductive Instruction :=
 .
 
 Notation "A ';' B" := (sequence A B) (at level 9, right associativity).
+Notation "A ';'" := (sequence A op_nop) (at level 9).
 Notation "A ':' B" := (lsequence A B) (at level 9, right associativity).
 Notation "'nop'" := (op_nop)(at level 6).
 Notation "'mov' A B" := (op_mov A B)(at level 6, A, B at level 5).
@@ -1137,7 +1178,7 @@ Notation "'ror' A" := (op_ror A)(at level 6, A at level 5).
 Notation "'rol' A" := (op_rol A)(at level 6, A at level 5).
 Notation "'not' A" := (op_not A)(at level 6, A at level 5).
 Notation "'neg' A" := (op_neg A)(at level 6, A at level 5).
-(*
+
 Notation "'and' A B" := (op_and A B)(at level 6, A, B at level 5).
 Notation "'nand' A B" := (op_nand A B)(at level 6, A, B at level 5).
 Notation "'xand' A B" := (op_xand A B)(at level 6, A, B at level 5).
@@ -1149,7 +1190,7 @@ Notation "'xnor' A B" := (op_xnor A B)(at level 6, A, B at level 5).
 
 Notation "'def' A S" := (op_def A S)(at level 6, A, S at level 5).
 Notation "'free' A" := (op_free A)(at level 6, A at level 5).
-
+(*
 Notation "'push' A" := (op_push A)(at level 6, A at level 5).
 Notation "'pop' A" := (op_pop A)(at level 6, A at level 5).
 Notation "'call' A" := (op_call A)(at level 6, A at level 5).
@@ -1226,7 +1267,7 @@ Definition IAddInstr (q : QWord)(p : IPointer)(i : Instruction) : IPointer :=
 		  if (QWord_eq_dec q q')
 			then i
 			else (p q').
-Definition ip1 := IAddInstr (nat_to_qword 0) ip0 (mov EAX EBX).
+Definition ip1 := IAddInstr (nat_to_qword 0) ip0 (mov EAX EBX ; mov EAX EAX ;).
 Compute ip1 0.
 
 
@@ -1250,25 +1291,29 @@ Compute env2 EAX S0.
 Compute ip1 0.
 Compute lp1 "_main".
 
-Inductive State := state : Memory -> Env -> IPointer -> LPointer -> State.
-Definition s0 := state mem0 env0 ip0 lp0.
-Definition s1 := state mem2 env2 ip1 lp1.
+Inductive State := state : Memory -> Map -> Env -> IPointer -> LPointer -> State.
+Definition s0 := state mem0 map0 env0 ip0 lp0.
+Definition s1 := state mem2 map2 env2 ip1 lp1.
 
 Definition s_mem (s : State) : Memory :=
 		match s with
-		| state m e ip lp => m
+		| state m m' e ip lp => m
+		end.
+Definition s_map (s : State) : Map :=
+		match s with
+		| state m m' e ip lp => m'
 		end.
 Definition s_env (s : State) : Env :=
 		match s with
-		| state m e ip lp => e
+		| state m m' e ip lp => e
 		end.
 Definition s_ip (s : State) : IPointer :=
 		match s with
-		| state m e ip lp => ip
+		| state m m' e ip lp => ip
 		end.
 Definition s_lp (s : State) : LPointer :=
 		match s with
-		| state m e ip lp => lp
+		| state m m' e ip lp => lp
 		end.
 
 Compute (s_mem s1) 100.
@@ -1279,61 +1324,60 @@ Compute (s_lp s1) "_main".
 
 Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 		match s with
-		| state m e ip lp =>
+		| state m m' e ip lp =>
 			match i with
 			| sequence s1 s2 => makeState (makeState s s1 q) s2 (sumqword q 1)
-			| lsequence s1 s2 => makeState (state m e ip (LAddLabel lp s1 (qword_to_nat q))) s2 q
-			| op_mov a1 a2 => state m e (IAddInstr q ip (op_mov a1 a2)) lp
-			| op_nop => state m e (IAddInstr q ip (op_nop)) lp
+			| lsequence s1 s2 => makeState (state m m' e ip (LAddLabel lp s1 (qword_to_nat q))) s2 q
+			| op_mov a1 a2 => state m m' e (IAddInstr q ip (op_mov a1 a2)) lp
+			| op_nop => state m m' e (IAddInstr q ip (op_nop)) lp
 			| op_end => s
 
-			| op_add a1 a2 => state m e (IAddInstr q ip (op_add a1 a2)) lp
-			| op_sub a1 a2 => state m e (IAddInstr q ip (op_sub a1 a2)) lp
-			| op_mul a1 a2 => state m e (IAddInstr q ip (op_mul a1 a2)) lp
-			| op_div a1 a2 => state m e (IAddInstr q ip (op_div a1 a2)) lp
+			| op_add a1 a2 => state m m' e (IAddInstr q ip (op_add a1 a2)) lp
+			| op_sub a1 a2 => state m m' e (IAddInstr q ip (op_sub a1 a2)) lp
+			| op_mul a1 a2 => state m m' e (IAddInstr q ip (op_mul a1 a2)) lp
+			| op_div a1 a2 => state m m' e (IAddInstr q ip (op_div a1 a2)) lp
 
-			| op_inc a => state m e (IAddInstr q ip (op_inc a)) lp
-			| op_dec a => state m e (IAddInstr q ip (op_dec a)) lp
-			| op_xchg a1 a2 => state m e (IAddInstr q ip (op_xchg a1 a2)) lp
+			| op_inc a => state m m' e (IAddInstr q ip (op_inc a)) lp
+			| op_dec a => state m m' e (IAddInstr q ip (op_dec a)) lp
+			| op_xchg a1 a2 => state m m' e (IAddInstr q ip (op_xchg a1 a2)) lp
 
-			| op_shr a => state m e (IAddInstr q ip (op_shr a)) lp
-			| op_shl a => state m e (IAddInstr q ip (op_shl a)) lp
-			| op_sar a => state m e (IAddInstr q ip (op_sar a)) lp
-			| op_sal a => state m e (IAddInstr q ip (op_sal a)) lp
-			| op_ror a => state m e (IAddInstr q ip (op_ror a)) lp
-			| op_rol a => state m e (IAddInstr q ip (op_rol a)) lp
-			| op_not a => state m e (IAddInstr q ip (op_not a)) lp
-			| op_neg a => state m e (IAddInstr q ip (op_neg a)) lp
-(*		
-			| op_and a1 a2 => state m e (IAddInstr q ip (op_and a1 a2)) lp
-			| op_nand a1 a2 => state m e (IAddInstr q ip (op_nand a1 a2)) lp
-			| op_xand a1 a2 => state m e (IAddInstr q ip (op_xand a1 a2)) lp
-			| op_xnand a1 a2 => state m e (IAddInstr q ip (op_xnand a1 a2)) lp
-			| op_or a1 a2 => state m e (IAddInstr q ip (op_or a1 a2)) lp
-			| op_nor a1 a2 => state m e (IAddInstr q ip (op_nor a1 a2)) lp
-			| op_xor a1 a2 => state m e (IAddInstr q ip (op_xor a1 a2)) lp
-			| op_xnor a1 a2 => state m e (IAddInstr q ip (op_xnor a1 a2)) lp
+			| op_shr a => state m m' e (IAddInstr q ip (op_shr a)) lp
+			| op_shl a => state m m' e (IAddInstr q ip (op_shl a)) lp
+			| op_sar a => state m m' e (IAddInstr q ip (op_sar a)) lp
+			| op_sal a => state m m' e (IAddInstr q ip (op_sal a)) lp
+			| op_ror a => state m m' e (IAddInstr q ip (op_ror a)) lp
+			| op_rol a => state m m' e (IAddInstr q ip (op_rol a)) lp
+			| op_not a => state m m' e (IAddInstr q ip (op_not a)) lp
+			| op_neg a => state m m' e (IAddInstr q ip (op_neg a)) lp
+		
+			| op_and a1 a2 => state m m' e (IAddInstr q ip (op_and a1 a2)) lp
+			| op_nand a1 a2 => state m m' e (IAddInstr q ip (op_nand a1 a2)) lp
+			| op_xand a1 a2 => state m m' e (IAddInstr q ip (op_xand a1 a2)) lp
+			| op_xnand a1 a2 => state m m' e (IAddInstr q ip (op_xnand a1 a2)) lp
+			| op_or a1 a2 => state m m' e (IAddInstr q ip (op_or a1 a2)) lp
+			| op_nor a1 a2 => state m m' e (IAddInstr q ip (op_nor a1 a2)) lp
+			| op_xor a1 a2 => state m m' e (IAddInstr q ip (op_xor a1 a2)) lp
+			| op_xnor a1 a2 => state m m' e (IAddInstr q ip (op_xnor a1 a2)) lp
+
+			| op_def v s => state m m' e (IAddInstr q ip (op_def v s)) lp
+			| op_free v => state m m' e (IAddInstr q ip (op_free v)) lp
+(*
+			| op_push a => state m m' e (IAddInstr q ip (op_push a)) lp
+			| op_pop a => state m m' e (IAddInstr q ip (op_pop a)) lp
+			| op_call a => state m m' e (IAddInstr q ip (op_call a)) lp
+			| op_ret => state m m' e (IAddInstr q ip (op_ret)) lp
 			
-			| op_def v s => state m e (IAddInstr q ip (op_def v s)) lp
-			| op_free v => state m e (IAddInstr q ip (op_free v)) lp
-
-			| op_push a => state m e (IAddInstr q ip (op_push a)) lp
-			| op_pop a => state m e (IAddInstr q ip (op_pop a)) lp
-			| op_call a => state m e (IAddInstr q ip (op_call a)) lp
-			| op_ret => state m e (IAddInstr q ip (op_ret)) lp
-			
-			| op_cmp a1 a2 => state m e (IAddInstr q ip (op_cmp a1 a2)) lp
-			| op_test a1 a2 => state m e (IAddInstr q ip (op_test a1 a2)) lp
-			| op_jmp a => state m e (IAddInstr q ip (op_jmp a)) lp
-			| op_jne a => state m e (IAddInstr q ip (op_jne a)) lp
-			| op_jg a => state m e (IAddInstr q ip (op_jg a)) lp
-			| op_jge a => state m e (IAddInstr q ip (op_jge a)) lp
-			| op_jl a => state m e (IAddInstr q ip (op_jl a)) lp
-			| op_jle a => state m e (IAddInstr q ip (op_jle a)) lp*)
+			| op_cmp a1 a2 => state m m' e (IAddInstr q ip (op_cmp a1 a2)) lp
+			| op_test a1 a2 => state m m' e (IAddInstr q ip (op_test a1 a2)) lp
+			| op_jmp a => state m m' e (IAddInstr q ip (op_jmp a)) lp
+			| op_jne a => state m m' e (IAddInstr q ip (op_jne a)) lp
+			| op_jg a => state m m' e (IAddInstr q ip (op_jg a)) lp
+			| op_jge a => state m m' e (IAddInstr q ip (op_jge a)) lp
+			| op_jl a => state m m' e (IAddInstr q ip (op_jl a)) lp
+			| op_jle a => state m m' e (IAddInstr q ip (op_jle a)) lp*)
 			end
 		end.
 
-Compute sumqword (nat_to_qword 0) 2.
 (*
 Definition p0 :=
 (
@@ -1400,6 +1444,7 @@ Definition env_aux30 := e_init env_aux29 OF S0.
 
 Definition env := env_aux30.
 Definition mem := mem0.
+Definition map := map0.
 Definition ip := ip0.
 Definition lp := lp0.
 
@@ -1417,74 +1462,118 @@ Fixpoint nat_to_gas (n : nat) : Gas :=
 Compute nat_to_gas 10.
 
 Local Open Scope Z_scope.
+Fixpoint gas_to_nat (g : Gas) : Z :=
+		match g with
+		| O => 0
+		| G n' => 1 + gas_to_nat (n')
+		end.
 Compute env3 "x" S0.
 Definition e := e_update env3 "x" 10.
-Fixpoint eval (s : State)(q : QWord)(gas : Gas) : State :=
+Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 		match gas with
 		| O => s
 		| G gas' =>
 			match s with
-			| state m e ip lp =>
+			| state m m' e ip lp =>
 				match (s_ip s) q with
 				| sequence s1 s2 => s
 				| lsequence s1 s2 => s
 				| op_end => s
-				| op_nop => eval s (sumqword q 1) (gas')
+				| op_nop => eval s (sumqword q 1) (gas') mp
 
-				| op_mov a1 a2 => eval (state m (e_update e a1 (a_eval a2 e)) ip lp) (sumqword q 1) (gas')
-				| op_add a1 a2 => eval (state m
+				| op_mov a1 a2 => eval (state m m' (e_update e a1 (a_eval a2 e)) ip lp) (sumqword q 1) (gas') mp
+				| op_add a1 a2 => eval (state m m'
 					(e_update e a1 (a_eval a1 e + a_eval a2 e))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_sub a1 a2 => eval (state m
+				| op_sub a1 a2 => eval (state m m'
 					(e_update e a1 (a_eval a1 e - a_eval a2 e))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_mul a1 a2 => eval (state m
+				| op_mul a1 a2 => eval (state m m'
 					(e_update e a1 (a_eval a1 e * a_eval a2 e))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_div a1 a2 => eval (state m
+				| op_div a1 a2 => eval (state m m'
 					(e_update e a1 (a_eval a1 e / a_eval a2 e))
-					ip lp) (sumqword q 1) (gas')
-				
-				| op_inc a => eval (state m (e_update e a (a_eval a e + 1)) ip lp) (sumqword q 1) (gas')
-				| op_dec a => eval (state m (e_update e a (a_eval a e - 1)) ip lp) (sumqword q 1) (gas')
-				| op_xchg a1 a2 => eval (state m
+					ip lp) (sumqword q 1) (gas') mp
+
+				| op_inc a => eval (state m m' (e_update e a (a_eval a e + 1)) ip lp) (sumqword q 1) (gas') mp
+				| op_dec a => eval (state m m' (e_update e a (a_eval a e - 1)) ip lp) (sumqword q 1) (gas') mp
+				| op_xchg a1 a2 => eval (state m m'
 					(e_update (e_update e a1 (a_eval a2 e)) a2 (a_eval a1 e))
-					ip lp) (sumqword q 1) (gas')
-				
-				| op_shr a => eval (state m
+					ip lp) (sumqword q 1) (gas') mp
+
+				| op_shr a => eval (state m m'
 					(e_update e a (val_to_nat (rshiftval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_shl a => eval (state m
+				| op_shl a => eval (state m m'
 					(e_update e a (val_to_nat (lshiftval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_sar a => eval (state m
+				| op_sar a => eval (state m m'
 					(e_update e a (val_to_nat (rshiftval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_sal a => eval (state m
+				| op_sal a => eval (state m m'
 					(e_update e a (val_to_nat (lshiftval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_ror a => eval (state m
+				| op_ror a => eval (state m m'
 					(e_update e a (val_to_nat (rrotval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_rol a => eval (state m
+				| op_rol a => eval (state m m'
 					(e_update e a (val_to_nat (lrotval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_not a => eval (state m
+				| op_not a => eval (state m m'
 					(e_update e a (val_to_nat (notval (nat_to_val (a_eval a e) (envScale e a)))))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
 
-				| op_neg a => eval (state m
+				| op_neg a => eval (state m m'
 					(e_update e a (-a_eval a e))
-					ip lp) (sumqword q 1) (gas')
+					ip lp) (sumqword q 1) (gas') mp
+
+				| op_and a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (andval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_nand a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (nandval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_xand a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (xandval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_xnand a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (xnandval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_or a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (orval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_nor a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (norval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_xor a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (xorval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+
+				| op_xnor a1 a2 => eval (state m m'
+					(e_update e a1 (val_to_nat (xnorval (nat_to_val (a_eval a1 e) (envScale e a1)) ((nat_to_val (a_eval a2 e) (envScale e a1)))))) ip lp)
+					(sumqword q 1) (gas') mp
+				
+				| op_def a sc => eval (state
+					(mem_init m mp a)
+					(map_init m' mp a)
+					(e_init e a sc)
+					ip lp) (sumqword q 1) (gas') (mp + 1)
+				| op_free a => eval (state m m' e ip lp) (sumqword q 1) (gas') mp
 				end
 			end
 		end.
@@ -1495,10 +1584,16 @@ mul EAX EAX;
 mov EBX EAX;
 sub EAX dword ptr 2;
 div EBX dword ptr 2;
-dec EBX;
+inc EBX;
+def "x" dword ptr;
+mov "x" EBX;
 mov EBX dword ptr 10;
-not EBX
+not EBX;
+and EAX word ptr 10;
+xor EDX EDX;
 ).
 
-Definition st' := eval (makeState (state mem env ip lp) prg0 0) 0 (nat_to_gas 1000).
-Compute val_to_nat ((s_env st') EBX S0).
+Definition st' := eval (makeState (state mem map env ip lp) prg0 0) 0 (nat_to_gas 1000) 1.
+Compute val_to_nat ((s_env st') EAX S0).
+Compute val_to_nat ((s_env st') "x" S0).
+Compute ((s_map st') "x").
