@@ -585,6 +585,45 @@ Definition lshiftqword (a : QWord) : QWord :=
 														(byte a58 a59 a60 a61 a62 a63 a64 0)))
 		end.
 
+Definition rashiftqword (a : QWord) : QWord :=
+		match a with
+		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+												 (byte a9 a10 a11 a12 a13 a14 a15 a16))
+									 (word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+												 (byte a25 a26 a27 a28 a29 a30 a31 a32)))
+						(dword (word (byte a33 a34 a35 a36 a37 a38 a39 a40)
+												 (byte a41 a42 a43 a44 a45 a46 a47 a48))
+									 (word (byte a49 a50 a51 a52 a53 a54 a55 a56)
+												 (byte a57 a58 a59 a60 a61 a62 a63 a64)))
+			=> qword (dword (word (byte a1 0 a2 a3 a4 a5 a6 a7)
+														(byte a8 a9 a10 a11 a12 a13 a14 a15))
+											(word (byte a16 a17 a18 a19 a20 a21 a22 a23)
+														(byte a24 a25 a26 a27 a28 a29 a30 a31)))
+							 (dword (word (byte a32 a33 a34 a35 a36 a37 a38 a39)
+														(byte a40 a41 a42 a43 a44 a45 a46 a47))
+											(word (byte a48 a49 a50 a51 a52 a53 a54 a55)
+														(byte a56 a57 a58 a59 a60 a61 a62 a63)))
+		end.
+Definition lashiftqword (a : QWord) : QWord :=
+		match a with
+		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
+												 (byte a9 a10 a11 a12 a13 a14 a15 a16))
+									 (word (byte a17 a18 a19 a20 a21 a22 a23 a24)
+												 (byte a25 a26 a27 a28 a29 a30 a31 a32)))
+						(dword (word (byte a33 a34 a35 a36 a37 a38 a39 a40)
+												 (byte a41 a42 a43 a44 a45 a46 a47 a48))
+									 (word (byte a49 a50 a51 a52 a53 a54 a55 a56)
+												 (byte a57 a58 a59 a60 a61 a62 a63 a64)))
+			=> qword (dword (word (byte a1 a3 a4 a5 a6 a7 a8 a9)
+														(byte a10 a11 a12 a13 a14 a15 a16 a17))
+											(word (byte a18 a19 a20 a21 a22 a23 a24 a25)
+														(byte a26 a27 a28 a29 a30 a31 a32 a33)))
+							 (dword (word (byte a34 a35 a36 a37 a38 a39 a40 a41)
+														(byte a42 a43 a44 a45 a46 a47 a48 a49))
+											(word (byte a50 a51 a52 a53 a54 a55 a56 a57)
+														(byte a58 a59 a60 a61 a62 a63 a64 0)))
+		end.
+
 Definition rrotqword (a : QWord) : QWord :=
 		match a with
 		| qword (dword (word (byte a1 a2 a3 a4 a5 a6 a7 a8)
@@ -873,6 +912,24 @@ Definition rshiftval (v : Val) : Val :=
 		| wordval w => wordval (rshiftword w)
 		| dwordval d => dwordval (rshiftdword d)
 		| qwordval q => qwordval (rshiftqword q)
+		end.
+Definition lashiftval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval 0
+		| byteval b => byteval (lashiftbyte b)
+		| wordval w => wordval (lashiftword w)
+		| dwordval d => dwordval (lashiftdword d)
+		| qwordval q => qwordval (lashiftqword q)
+		end.
+Definition rashiftval (v : Val) : Val :=
+		match v with
+		| null => null
+		| bitval b => bitval 0
+		| byteval b => byteval (rashiftbyte b)
+		| wordval w => wordval (rashiftword w)
+		| dwordval d => dwordval (rashiftdword d)
+		| qwordval q => qwordval (rashiftqword q)
 		end.
 Definition lrotval (v : Val) : Val :=
 		match v with
@@ -1801,7 +1858,7 @@ Definition env_aux32 := e_init env_aux31 GF S0.
 Definition env_aux33 := e_init env_aux32 BF S0.
 
 Compute env_aux33 EAX S0.
-Definition env' := e_update (env_aux33) EAX 0xFFFF.
+Definition env' := e_update (env_aux33) EAX 0xAFAFAF.
 Compute env' EAX S0.
 Compute env' AX S0.
 Compute env' AH S0.
@@ -1890,11 +1947,11 @@ Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 					ip lp) (sumqword q 1) (gas') mp
 
 				| op_sar a => eval (state m m' st
-					(e_update e a (val_to_nat (rshiftval (nat_to_val (a_eval a m m' e) (envScale e a)))))
+					(e_update e a (val_to_nat (rashiftval (nat_to_val (a_eval a m m' e) (envScale e a)))))
 					ip lp) (sumqword q 1) (gas') mp
 
 				| op_sal a => eval (state m m' st
-					(e_update e a (val_to_nat (lshiftval (nat_to_val (a_eval a m m' e) (envScale e a)))))
+					(e_update e a (val_to_nat (lashiftval (nat_to_val (a_eval a m m' e) (envScale e a)))))
 					ip lp) (sumqword q 1) (gas') mp
 
 				| op_ror a => eval (state m m' st
@@ -2089,10 +2146,11 @@ Definition prg2 :=
 MOV EAX dword ptr 0;
 dec EAX;
 test EAX dword ptr 0;
+sar EAX;
 .
 
 Definition st1 := eval (makeState (state mem map stack env ip lp) prg2 0) 0 (nat_to_gas 1000) 1.
-Compute val_to_nat ((s_env st1) AX S0).
+Compute ((s_env st1) EAX S0).
 Compute (s_env st1) SF S0.
 Compute (s_env st1) PF S0.
 Compute (s_env st1) ZF S0.
