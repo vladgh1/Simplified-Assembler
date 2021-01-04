@@ -56,6 +56,11 @@ Definition eqbit (b1 b2 : Bit) : Bit :=
 		| _, _ => false
 		end.
 
+Definition paritybit (b : Bit) : Z :=
+		match b with
+		| false => 0
+		| true => 1
+		end.
 
 (*
  * Byte - 8 Bits
@@ -144,6 +149,27 @@ Definition xnandbyte (b1 b2 : Byte) : Byte :=
 		match b1, b2 with
 			byte a1 a2 a3 a4 a5 a6 a7 a8, byte a1' a2' a3' a4' a5' a6' a7' a8' =>
 				byte (xnandbit a1 a1') (xnandbit a2 a2') (xnandbit a3 a3') (xnandbit a4 a4') (xnandbit a5 a5') (xnandbit a6 a6') (xnandbit a7 a7') (xnandbit a8 a8')
+		end.
+
+Definition paritybyte (b : Byte) : Z :=
+		match b with
+		| byte b1 b2 b3 b4 b5 b6 b7 b8 =>
+			if (Z.eqb ((bit_to_nat b1) + (bit_to_nat b2) + (bit_to_nat b3) + (bit_to_nat b4) + (bit_to_nat b5) + (bit_to_nat b6) + (bit_to_nat b7) + (bit_to_nat b8)) 0)
+			then 1
+			else if (Z.eqb ((bit_to_nat b1) + (bit_to_nat b2) + (bit_to_nat b3) + (bit_to_nat b4) + (bit_to_nat b5) + (bit_to_nat b6) + (bit_to_nat b7) + (bit_to_nat b8)) 2)
+			then 1
+			else if (Z.eqb ((bit_to_nat b1) + (bit_to_nat b2) + (bit_to_nat b3) + (bit_to_nat b4) + (bit_to_nat b5) + (bit_to_nat b6) + (bit_to_nat b7) + (bit_to_nat b8)) 4)
+			then 1
+			else if (Z.eqb ((bit_to_nat b1) + (bit_to_nat b2) + (bit_to_nat b3) + (bit_to_nat b4) + (bit_to_nat b5) + (bit_to_nat b6) + (bit_to_nat b7) + (bit_to_nat b8)) 6)
+			then 1
+			else if (Z.eqb ((bit_to_nat b1) + (bit_to_nat b2) + (bit_to_nat b3) + (bit_to_nat b4) + (bit_to_nat b5) + (bit_to_nat b6) + (bit_to_nat b7) + (bit_to_nat b8)) 8)
+			then 1
+			else 0
+		end.
+
+Definition signbyte (b : Byte) : Z :=
+		match b with
+		| byte b1 _ _ _ _ _ _ _ => bit_to_nat b1
 		end.
 
 Definition nat_to_byte (n : Z) : Byte :=
@@ -282,6 +308,20 @@ Definition xnandword (w1 w2 : Word) : Word :=
 		match w1, w2 with
 		| word b1 b2, word b1' b2' => word (xnandbyte b1 b1') (xnandbyte b2 b2')
 		end.
+
+Definition parityword (w : Word) : Z :=
+		match w with
+		| word b1 b2 => if (Z.eqb ((paritybyte b1) + (paritybyte b2)) 0) then 1
+										else if (Z.eqb ((paritybyte b1) + (paritybyte b2)) 2) then 1
+										else 0
+		end.
+Compute parityword (nat_to_word 10).
+
+Definition signword (w : Word) : Z :=
+		match w with
+		| word b1 b2 => signbyte b1
+		end.
+Compute signword (nat_to_word 0xF000).
 
 Compute nat_to_word 0xFF.
 Compute word_to_nat 0xFF.
@@ -432,6 +472,20 @@ Definition xnanddword (d1 d2 : DWord) : DWord :=
 		| dword w1 w2, dword w1' w2' => dword (xnandword w1 w1') (xnandword w2 w2')
 		end.
 
+Definition paritydword (d : DWord) : Z :=
+		match d with
+		| dword w1 w2 => if (Z.eqb ((parityword w1) + (parityword w2)) 0) then 1
+										else if (Z.eqb ((parityword w1) + (parityword w2)) 2) then 1
+										else 0
+		end.
+Compute paritydword (nat_to_dword 10).
+
+Definition signdword (d : DWord) : Z :=
+		match d with
+		| dword w1 w2 => signword w1
+		end.
+Compute signdword (nat_to_dword 0xF0000000).
+
 Definition sumdword (d1 d2 : DWord) : DWord :=
 		nat_to_dword (dword_to_nat d1 + dword_to_nat d2).
 Definition difdword (d1 d2 : DWord) : DWord :=
@@ -576,6 +630,19 @@ Definition nandqword (q1 q2 : QWord) : QWord :=
 Definition xnandqword (q1 q2 : QWord) : QWord :=
 		match q1, q2 with
 		| qword d1 d2, qword d1' d2' => qword (xnanddword d1 d1') (xnanddword d2 d2')
+		end.
+
+Definition parityqword (q : QWord) : Z :=
+		match q with
+		| qword d1 d2 => if (Z.eqb ((paritydword d1) + (paritydword d2)) 0) then 1
+										else if (Z.eqb ((paritydword d1) + (paritydword d2)) 2) then 1
+										else 0
+		end.
+Compute parityqword (nat_to_qword 10).
+
+Definition signqword (q : QWord) : Z :=
+		match q with
+		| qword d1 d2 => signdword d1
 		end.
 
 Definition sumqword (q1 q2 : QWord) : QWord :=
@@ -883,6 +950,25 @@ Compute andval (bit ptr 1) (bit ptr 1).
 Compute andval (byte ptr 0xFF) (byte ptr 0xF0).
 Compute andval (dword ptr 0xFFFFFF) (dword ptr 0xF000FF).
 
+Definition parityval (v : Val) : Z :=
+		match v with
+		| null => 0
+		| bitval b => paritybit b
+		| byteval b => paritybyte b
+		| wordval w => parityword w
+		| dwordval d => paritydword d
+		| qwordval q => parityqword q
+		end.
+
+Definition signval (v : Val) : Z :=
+		match v with
+		| null => 0
+		| bitval b => bit_to_nat b
+		| byteval b => signbyte b
+		| wordval w => signword w
+		| dwordval d => signdword d
+		| qwordval q => signqword q
+		end.
 
 Inductive Scale := SN | S0 | S1 | S2 | S4 | S8.
 Scheme Equality for Scale.
@@ -994,7 +1080,19 @@ Definition e_update (env : Env) (v : VarExt) (x : Z) : Env :=
 			then if (Val_eq_dec (env y s) null)
 				then null
 				else nat_to_val x (envScale env v)
-			else env y s.
+			else if (VarExt_eq_dec y ZF) (* Set Zero Flag *)
+				then if (Val_eq_dec (env y s) null)
+					then env ZF S0
+					else if (Z.eqb x 0) then nat_to_val 1 S0 else nat_to_val 0 S0
+				else if (VarExt_eq_dec y PF) (* Set parity flag *)
+					then if (Val_eq_dec (env y s) null)
+						then env PF S0
+						else if (Z.eqb (parityval (nat_to_val x (envScale env v))) 1) then nat_to_val 1 S0 else nat_to_val 0 S0
+					else if (VarExt_eq_dec y SF) (* Sign flag *)
+						then if (Val_eq_dec (env y s) null)
+							then env SF S0
+							else if (Z.eqb (signval (nat_to_val x (envScale env v))) 1) then nat_to_val 1 S0 else nat_to_val 0 S0
+					else env y s.
 Definition e_free (env : Env) (v : VarExt) : Env :=
 		fun (y : VarExt) (s : Scale) =>
 			if (VarExt_eq_dec y v)
@@ -1213,6 +1311,13 @@ Inductive Instruction :=
 | op_jge : string -> Instruction
 | op_jl : string -> Instruction
 | op_jle : string -> Instruction
+
+| op_jz : string -> Instruction
+| op_jnz : string -> Instruction
+| op_jp : string -> Instruction
+| op_jnp : string -> Instruction
+| op_js : string -> Instruction
+| op_jns : string -> Instruction
 .
 
 Notation "A ';' B" := (sequence A B) (at level 9, right associativity).
@@ -1268,6 +1373,13 @@ Notation "'jge' A" := (op_jge A)(at level 6, A at level 5).
 Notation "'jl' A" := (op_jl A)(at level 6, A at level 5).
 Notation "'jle' A" := (op_jle A)(at level 6, A at level 5).
 
+Notation "'jz' A" := (op_jz A)(at level 6, A at level 5).
+Notation "'jnz' A" := (op_jnz A)(at level 6, A at level 5).
+Notation "'jp' A" := (op_jp A)(at level 6, A at level 5).
+Notation "'jnp' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'js' A" := (op_js A)(at level 6, A at level 5).
+Notation "'jns' A" := (op_jns A)(at level 6, A at level 5).
+
 Notation "'NOP'" := (op_nop)(at level 6).
 Notation "'MOV' A B" := (op_mov A B)(at level 6, A, B at level 5).
 Notation "'ADD' A B" := (op_add A B)(at level 6, A, B at level 5).
@@ -1315,6 +1427,13 @@ Notation "'JG' A" := (op_jg A)(at level 6, A at level 5).
 Notation "'JGE' A" := (op_jge A)(at level 6, A at level 5).
 Notation "'JL' A" := (op_jl A)(at level 6, A at level 5).
 Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
+
+Notation "'JZ' A" := (op_jz A)(at level 6, A at level 5).
+Notation "'JNZ' A" := (op_jnz A)(at level 6, A at level 5).
+Notation "'JP' A" := (op_jp A)(at level 6, A at level 5).
+Notation "'JNP' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'JS' A" := (op_js A)(at level 6, A at level 5).
+Notation "'JNS' A" := (op_jns A)(at level 6, A at level 5).
 
 Check (mov EAX EBX).
 Check (mov EAX dword ptr (10+0x00FF00FF)).
@@ -1444,6 +1563,13 @@ Fixpoint makeState (s : State)(i : Instruction)(q : QWord) : State :=
 			| op_jge a => state m m' st e (IAddInstr q ip (op_jge a)) lp
 			| op_jl a => state m m' st e (IAddInstr q ip (op_jl a)) lp
 			| op_jle a => state m m' st e (IAddInstr q ip (op_jle a)) lp
+
+			| op_jz a => state m m' st e (IAddInstr q ip (op_jz a)) lp
+			| op_jnz a => state m m' st e (IAddInstr q ip (op_jnz a)) lp
+			| op_jp a => state m m' st e (IAddInstr q ip (op_jp a)) lp
+			| op_jnp a => state m m' st e (IAddInstr q ip (op_jnp a)) lp
+			| op_js a => state m m' st e (IAddInstr q ip (op_js a)) lp
+			| op_jns a => state m m' st e (IAddInstr q ip (op_jns a)) lp
 			end
 		end.
 
@@ -1699,6 +1825,24 @@ Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 
 				| op_jle a => eval (state m m' st e ip lp)
 					(if (orb (Bit_beq (val_to_nat (e GF S0)) false) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jz a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e ZF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jnz a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e ZF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jp a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e PF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jnp a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e PF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_js a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e SF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+
+				| op_jns a => eval (state m m' st e ip lp)
+					(if (Bit_beq (val_to_nat (e SF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
 				end
 			end
 		end.
@@ -1721,11 +1865,13 @@ mov EBX EAX;
 sub EAX dword ptr 2;
 div EBX dword ptr 2;
 inc EBX;
+jp "label";
 def "x" dword ptr;
 def "z" byte ptr;
 mov "x" EBX;
 mov EBX dword ptr 10;
 not EBX;
+"label":
 and EAX word ptr 10;
 xor EDX EDX;
 mov EAX ["z"];
@@ -1739,6 +1885,7 @@ Compute (s_stack st').
 Compute val_to_nat ((s_env st') EAX S0).
 Compute (s_mem st') 1.
 Compute (e_eval (a_eval ["x"] mem' map' env3) map' env3).
+Compute val_to_nat ((s_env st') PF S0).
 
 Definition prg1 :=
 jmp "_main";
@@ -1760,4 +1907,4 @@ je "_fun1";
 Definition st'' := eval (makeState (state mem map stack env ip lp) prg1 0) 0 (nat_to_gas 1000) 1.
 Compute val_to_nat ((s_env st'') EAX S0).
 Compute qword_to_nat (top_qword (s_stack st'')).
-Compute (s_env st'') GF S0.
+Compute (s_env st'') ZF S0.
