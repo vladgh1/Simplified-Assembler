@@ -1146,6 +1146,9 @@ Definition e_test (env : Env) (v : VarExt) (x : Z) : Env :=
 							then env SF S0
 							else if (Z.eqb (signval (nat_to_val x (envScale env v))) 1) then nat_to_val 1 S0 else nat_to_val 0 S0
 					else env y s.
+
+Compute (nat_to_val 10 S2).
+Compute (nat_to_val ((val_to_nat (nat_to_val 10 S2)) - (val_to_nat (nat_to_val 10 S1))) S1).
 Definition e_update (env : Env) (v : VarExt) (x : Z) : Env :=
 		fun (y : VarExt) (s : Scale) =>
 		  if (VarExt_eq_dec v y)
@@ -1164,7 +1167,55 @@ Definition e_update (env : Env) (v : VarExt) (x : Z) : Env :=
 						then if (Val_eq_dec (env y s) null)
 							then env SF S0
 							else if (Z.eqb (signval (nat_to_val x (envScale env v))) 1) then nat_to_val 1 S0 else nat_to_val 0 S0
-					else env y s.
+			else if (VarExt_eq_dec v EAX) then
+				if (VarExt_eq_dec y AX) then (nat_to_val x S2)
+				else if (VarExt_eq_dec y AL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y AH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			else if (VarExt_eq_dec v EBX) then
+				if (VarExt_eq_dec y BX) then (nat_to_val x S2)
+				else if (VarExt_eq_dec y BL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y BH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			else if (VarExt_eq_dec v ECX) then
+				if (VarExt_eq_dec y CX) then (nat_to_val x S2)
+				else if (VarExt_eq_dec y CL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y CH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			else if (VarExt_eq_dec v ECX) then
+				if (VarExt_eq_dec y CX) then (nat_to_val x S2)
+				else if (VarExt_eq_dec y CL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y CH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			
+			else if (VarExt_eq_dec v AX) then
+				if (VarExt_eq_dec y AL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y AH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			else if (VarExt_eq_dec v BX) then
+				if (VarExt_eq_dec y BL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y BH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			else if (VarExt_eq_dec v CX) then
+				if (VarExt_eq_dec y CL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y CH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+			else if (VarExt_eq_dec v DX) then
+				if (VarExt_eq_dec y DL) then (nat_to_val x S1)
+				else if (VarExt_eq_dec y DH) then (nat_to_val ((val_to_nat (nat_to_val x S2)) / 8) S1)
+				else env y s
+
+			else if (VarExt_eq_dec v ESI) then
+				if (VarExt_eq_dec y SI) then (nat_to_val x S2) else env y s
+			else if (VarExt_eq_dec v EDI) then
+				if (VarExt_eq_dec y DI) then (nat_to_val x S2) else env y s
+			else if (VarExt_eq_dec v EBP) then
+				if (VarExt_eq_dec y BP) then (nat_to_val x S2) else env y s
+			else env y s.
+(*Inductive ByteReg := AH | AL | BH | BL | CH | CL | DH | DL.
+Inductive WordReg := AX | BX | CX | DX | SI | DI | BP.
+Inductive DWordReg := EAX | EBX | ECX | EDX | ESI | EDI | EBP.
+Inductive Reg := byteReg (r : ByteReg) | wordReg (r : WordReg) | dwordReg (r : DWordReg) | ESP | SP | EIP.*)
 Definition e_free (env : Env) (v : VarExt) : Env :=
 		fun (y : VarExt) (s : Scale) =>
 			if (VarExt_eq_dec y v)
@@ -1749,6 +1800,15 @@ Definition env_aux31 := e_init env_aux30 EF S0.
 Definition env_aux32 := e_init env_aux31 GF S0.
 Definition env_aux33 := e_init env_aux32 BF S0.
 
+Compute env_aux33 EAX S0.
+Definition env' := e_update (env_aux33) EAX 0xFFFF.
+Compute env' EAX S0.
+Compute env' AX S0.
+Compute env' AH S0.
+Compute env' AL S0.
+Definition env'' := e_update (env') "x" 10.
+Compute env'' AH S0.
+
 Definition env := env_aux33.
 Definition mem := mem0.
 Definition map := map0.
@@ -2032,7 +2092,7 @@ test EAX dword ptr 0;
 .
 
 Definition st1 := eval (makeState (state mem map stack env ip lp) prg2 0) 0 (nat_to_gas 1000) 1.
-Compute val_to_nat ((s_env st1) EAX S0).
+Compute val_to_nat ((s_env st1) AX S0).
 Compute (s_env st1) SF S0.
 Compute (s_env st1) PF S0.
 Compute (s_env st1) ZF S0.
