@@ -3,63 +3,64 @@ Require Import Coq.Lists.List.
 Local Open Scope Z_scope.
 Open Scope list_scope.
 
-Inductive Bit := false | true.
+Section SASM.
+Inductive Bit := bfalse | btrue.
 Scheme Equality for Bit.
 Definition bit (n : Z) : Bit :=
 		match n with
-		| 0 => false
-		| _ => true
+		| 0 => bfalse
+		| _ => btrue
 		end.
 Coercion bit : Z >-> Bit.
 
 Definition bit_to_nat (b : Bit) : Z :=
 		match b with
-		| false => 0
-		| true => 1
+		| bfalse => 0
+		| btrue => 1
 		end.
 
 Definition notbit (b1 : Bit) : Bit :=
 		match b1 with
-		| false => true
-		| true => false
+		| bfalse => btrue
+		| btrue => bfalse
 		end.
 Definition orbit (b1 b2 : Bit) : Bit :=
 		match b1, b2 with
-		| false, false => false
-		| _, _ => true
+		| bfalse, bfalse => bfalse
+		| _, _ => btrue
 		end.
 Definition xorbit (b1 b2 : Bit) : Bit :=
 		match b1, b2 with
-		| true, true => false
-		| false, false => false
-		| _, _ => true
+		| btrue, btrue => bfalse
+		| bfalse, bfalse => bfalse
+		| _, _ => btrue
 		end.
 Definition norbit (b1 b2 : Bit) : Bit := (notbit (orbit b1 b2)).
 Definition xnorbit (b1 b2 : Bit) : Bit := (notbit (xorbit b1 b2)).
 Definition andbit (b1 b2 : Bit) : Bit :=
 		match b1, b2 with
-		| true, true => true
-		| _, _ => false
+		| btrue, btrue => btrue
+		| _, _ => bfalse
 		end.
 Definition xandbit (b1 b2 : Bit) : Bit :=
 		match b1, b2 with
-		| true, true => true
-		| false, false => true
-		| _, _ => false
+		| btrue, btrue => btrue
+		| bfalse, bfalse => btrue
+		| _, _ => bfalse
 		end.
 Definition nandbit (b1 b2 : Bit) : Bit := notbit (andbit b1 b2).
 Definition xnandbit (b1 b2 : Bit) : Bit := notbit (xandbit b1 b2).
 Definition eqbit (b1 b2 : Bit) : Bit :=
 		match b1, b2 with
-		| false, false => true
-		| true, true => true
-		| _, _ => false
+		| bfalse, bfalse => btrue
+		| btrue, btrue => btrue
+		| _, _ => bfalse
 		end.
 
 Definition paritybit (b : Bit) : Z :=
 		match b with
-		| false => 0
-		| true => 1
+		| bfalse => 0
+		| btrue => 1
 		end.
 
 (*
@@ -205,17 +206,17 @@ Compute byte_to_nat n.
 
 Definition acmpbyte (b1 b2 : Byte) : Z :=
 		match b1, b2 with
-		| byte true a2 a3 a4 a5 a6 a7 a8,
-		  byte false a2' a3' a4' a5' a6' a7' a8' => -1
+		| byte btrue a2 a3 a4 a5 a6 a7 a8,
+		  byte bfalse a2' a3' a4' a5' a6' a7' a8' => -1
 		
-		| byte false a2 a3 a4 a5 a6 a7 a8,
-		  byte true a2' a3' a4' a5' a6' a7' a8' => 1
+		| byte bfalse a2 a3 a4 a5 a6 a7 a8,
+		  byte btrue a2' a3' a4' a5' a6' a7' a8' => 1
 		
-		| byte false a2 a3 a4 a5 a6 a7 a8,
-		  byte false a2' a3' a4' a5' a6' a7' a8' => if (Z.gtb (byte_to_nat b1) (byte_to_nat b2)) then 1 else if (Z.eqb (byte_to_nat b1) (byte_to_nat b2)) then 0 else -1
+		| byte bfalse a2 a3 a4 a5 a6 a7 a8,
+		  byte bfalse a2' a3' a4' a5' a6' a7' a8' => if (Z.gtb (byte_to_nat b1) (byte_to_nat b2)) then 1 else if (Z.eqb (byte_to_nat b1) (byte_to_nat b2)) then 0 else -1
 		
-		| byte true a2 a3 a4 a5 a6 a7 a8,
-		  byte true a2' a3' a4' a5' a6' a7' a8' => if (Z.gtb (byte_to_nat b1) (byte_to_nat b2)) then -1 else if (Z.eqb (byte_to_nat b1) (byte_to_nat b2)) then 0 else 1
+		| byte btrue a2 a3 a4 a5 a6 a7 a8,
+		  byte btrue a2' a3' a4' a5' a6' a7' a8' => if (Z.gtb (byte_to_nat b1) (byte_to_nat b2)) then -1 else if (Z.eqb (byte_to_nat b1) (byte_to_nat b2)) then 0 else 1
 		end.
 
 Definition sumbyte (b1 b2 : Byte) : Byte :=
@@ -2039,54 +2040,54 @@ Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 				| op_jmp a => eval (state m m' st e ip lp) (lp a) (gas') mp
 
 				| op_je a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e EF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e EF S0)) btrue) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jne a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e EF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e EF S0)) bfalse) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jg a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e GF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e GF S0)) btrue) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jge a => eval (state m m' st e ip lp)
-					(if (orb (Bit_beq (val_to_nat (e GF S0)) true) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (orb (Bit_beq (val_to_nat (e GF S0)) btrue) (Bit_beq (val_to_nat (e EF S0)) btrue)) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jl a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e GF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e GF S0)) bfalse) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jle a => eval (state m m' st e ip lp)
-					(if (orb (Bit_beq (val_to_nat (e GF S0)) false) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (orb (Bit_beq (val_to_nat (e GF S0)) bfalse) (Bit_beq (val_to_nat (e EF S0)) btrue)) then (lp a) else (sumqword q 1)) (gas') mp
 
 
 				| op_jz a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e ZF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e ZF S0)) btrue) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jnz a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e ZF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e ZF S0)) bfalse) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jp a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e PF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e PF S0)) btrue) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jnp a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e PF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e PF S0)) bfalse) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_js a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e SF S0)) true) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e SF S0)) btrue) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jns a => eval (state m m' st e ip lp)
-					(if (Bit_beq (val_to_nat (e SF S0)) false) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (Bit_beq (val_to_nat (e SF S0)) bfalse) then (lp a) else (sumqword q 1)) (gas') mp
 
 
 				| op_jb a => eval (state m m' st e ip lp)
-					(if (orb (Bit_beq (val_to_nat (e BF S0)) true) (Bit_beq (val_to_nat (e EF S0)) false)) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (orb (Bit_beq (val_to_nat (e BF S0)) btrue) (Bit_beq (val_to_nat (e EF S0)) bfalse)) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jbe a => eval (state m m' st e ip lp)
-					(if (orb (Bit_beq (val_to_nat (e BF S0)) true) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (orb (Bit_beq (val_to_nat (e BF S0)) btrue) (Bit_beq (val_to_nat (e EF S0)) btrue)) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_ja a => eval (state m m' st e ip lp)
-					(if (orb (Bit_beq (val_to_nat (e BF S0)) false) (Bit_beq (val_to_nat (e EF S0)) false)) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (orb (Bit_beq (val_to_nat (e BF S0)) bfalse) (Bit_beq (val_to_nat (e EF S0)) bfalse)) then (lp a) else (sumqword q 1)) (gas') mp
 
 				| op_jae a => eval (state m m' st e ip lp)
-					(if (orb (Bit_beq (val_to_nat (e BF S0)) false) (Bit_beq (val_to_nat (e EF S0)) true)) then (lp a) else (sumqword q 1)) (gas') mp
+					(if (orb (Bit_beq (val_to_nat (e BF S0)) bfalse) (Bit_beq (val_to_nat (e EF S0)) btrue)) then (lp a) else (sumqword q 1)) (gas') mp
 				end
 			end
 		end.
@@ -2154,3 +2155,307 @@ Compute ((s_env st1) EAX S0).
 Compute (s_env st1) SF S0.
 Compute (s_env st1) PF S0.
 Compute (s_env st1) ZF S0.
+End SASM.
+
+
+
+
+(* Another programming language *)
+Require Import String.
+Require Import Coq.Bool.Bool.
+Open Scope string.
+Inductive PVal :=
+| pnull
+| integer : Z -> PVal
+| boolean : bool -> PVal.
+Coercion integer : Z >-> PVal.
+Coercion boolean : bool >-> PVal.
+
+Inductive PVar :=
+| s : string -> PVar.
+Coercion s : string >-> PVar.
+Scheme Equality for PVar.
+Compute "x".
+
+Inductive VarType := INT | BOOL.
+
+Definition PEnv := PVar -> PVal.
+
+Definition pupdate (env : PEnv) (x : PVar) (v : PVal) : PEnv :=
+  fun y => if (PVar_eq_dec y x)
+						then v
+						else (env y).
+
+Notation "S [ V // X ]" := (pupdate S X V) (at level 0).
+Definition penv0 := fun (var : PVar) => pnull.
+Definition penv1 := pupdate penv0 "x" 10.
+Definition penv2 := pupdate penv1 "y" 5.
+Definition penv3 := pupdate penv2 "z" 2.
+
+
+(* AExp *)
+
+Inductive AExp :=
+| avar : PVar -> AExp
+| aval : PVal -> AExp
+| aplus : AExp -> AExp -> AExp
+| aminus : AExp -> AExp -> AExp
+| amul : AExp -> AExp -> AExp
+| adiv : AExp -> AExp -> AExp.
+
+Notation "A +'' B" := (aplus A B) (at level 48).
+Notation "A -'' B" := (aminus A B) (at level 48).
+Notation "A *'' B" := (amul A B) (at level 46).
+Notation "A /'' B" := (adiv A B) (at level 46).
+Coercion aval : PVal >-> AExp.
+Coercion avar : PVar >-> AExp.
+
+Reserved Notation "A =[ S ]=> N" (at level 70).
+
+Inductive aeval : AExp -> PEnv -> AExp -> Prop :=
+| a_lookup : forall (x : PVar) (i : Z) (sigma : PEnv),
+		sigma x = i ->
+		avar x =[ sigma ]=> i
+| a_const : forall n sigma, aval n =[ sigma ]=> n
+
+| a_add : forall a1 a2 (i1 i2 : Z) sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 + i2 ->
+    a1 +'' a2 =[sigma]=> n
+
+| a_sub : forall a1 a2 (i1 i2 : Z) n sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		n = i1 - i2 ->
+		i1 -'' i2 =[ sigma ]=> n
+
+| a_mul : forall a1 a2 (i1 i2 : Z) n sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		n = i1 * i2 ->
+		i1 *'' i2 =[ sigma ]=> n
+
+| a_div : forall a1 a2 (i1 i2 : Z) n sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		n = i1 / i2 ->
+		i1 /'' i2 =[ sigma ]=> n
+where "A =[ S ]=> N" := (aeval A S N).
+
+Example ae0 : "x" =[ penv1 ]=> 10.
+Proof.
+		eapply a_lookup.
+		reflexivity.
+Qed.
+
+Example ae1 : "x" +'' 1 =[ penv1 ]=> 11.
+Proof.
+		eapply a_add.
+			- eapply a_lookup. reflexivity.
+			- eapply a_const.
+			- eauto.
+Qed.
+
+
+(* BExp *)
+
+Inductive BExp :=
+| bvar : PVar -> BExp
+| bval : PVal -> BExp
+| bnot : BExp -> BExp
+| band : BExp -> BExp -> BExp
+| bor : BExp -> BExp -> BExp
+| blt : AExp -> AExp -> BExp
+| ble : AExp -> AExp -> BExp
+| bne : AExp -> AExp -> BExp
+| beq : AExp -> AExp -> BExp.
+Coercion bvar : PVar >-> BExp.
+Coercion bval : PVal >-> BExp.
+
+
+Notation "! A" := (bnot A) (at level 50).
+Notation "A 'and' B" := (band A B) (at level 61).
+Notation "A 'or' B" := (bor A B) (at level 62).
+Notation "A != B" := (bne A B) (at level 55).
+Notation "A == B" := (bne A B) (at level 55).
+Notation "A <' B" := (blt A B) (at level 54).
+Notation "A <=' B" := (ble A B) (at level 54).
+Notation "A >' B" := (blt B A) (at level 54).
+Notation "A >=' B" := (ble B A) (at level 54).
+
+Reserved Notation "B ={ S }=> B'" (at level 71).
+Inductive beval : BExp -> PEnv -> BExp -> Prop :=
+| b_const : forall n sigma, (bval n) ={ sigma }=> n
+| b_lookup : forall (x : PVar) (i : PVal) (sigma : PEnv),
+		sigma x = i ->
+		(bvar x) ={ sigma }=> i
+| b_not_bfalse : forall b sigma,
+		b ={ sigma }=> false ->
+		(bnot b) ={ sigma }=> true
+| b_not_btrue : forall b sigma,
+		b ={ sigma }=> true ->
+		(bnot b) ={ sigma }=> false
+
+| b_and_bfalse : forall b1 b2 sigma,
+		b1 ={ sigma }=> false ->
+		b1 and b2 ={ sigma }=> false
+| b_and_btrue : forall b1 b2 b2' sigma,
+		b1 ={ sigma }=> true ->
+		b2 ={ sigma }=> b2' ->
+		b1 and b2 ={ sigma }=> b2'
+
+| b_or_bfalse : forall b1 b2 b2' sigma,
+		b1 ={ sigma }=> false ->
+		b2 ={ sigma }=> b2' ->
+		b1 or b2 ={ sigma }=> b2'
+| b_or_btrue : forall b1 b2 sigma,
+		b1 ={ sigma }=> true ->
+		b1 or b2 ={ sigma }=> true
+
+| b_lt : forall a1 a2 (i1 i2 : Z) b sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		b = Z.ltb i1 i2 ->
+		a1 <' a2 ={ sigma }=> b
+		
+| b_le : forall a1 a2 (i1 i2 : Z) b sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		b = Z.leb i1 i2 ->
+		a1 <=' a2 ={ sigma }=> b
+
+| b_ne : forall a1 a2 (i1 i2 : bool) b sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		b = (if eqb i1 i2 then false else true) ->
+		a1 != a2 ={ sigma }=> b
+
+| b_eq : forall a1 a2 (i1 i2 : bool) b sigma,
+		a1 =[ sigma ]=> i1 ->
+		a2 =[ sigma ]=> i2 ->
+		b = (eqb i1 i2) ->
+		a1 == a2 ={ sigma }=> b
+where "B ={ S }=> B'" := (beval B S B').
+
+Definition penv1' := pupdate penv0 "x" true.
+Definition penv2' := pupdate penv1' "y" false.
+Compute penv2' "y".
+
+Example bool_lookup : "x" ={ penv1' }=> true.
+Proof.
+		eapply b_lookup.
+		reflexivity.
+Qed.
+
+Example bool_and_btrue : "x" and true ={ penv1' }=> true.
+Proof.
+		eapply b_and_btrue.
+		- eapply b_lookup. reflexivity.
+		- eapply b_const.
+Qed.
+
+Example bool_and_bfalse : "y" and true ={ penv2' }=> false.
+Proof.
+		eapply b_and_bfalse.
+		- eapply b_lookup. reflexivity.
+Qed.
+
+Example bool_or_btrue : "x" or false ={ penv1' }=> true.
+Proof.
+		eapply b_or_btrue.
+		- eapply b_lookup. reflexivity.
+Qed.
+
+Example bool_or_bfalse : "y" or true ={ penv2' }=> true.
+Proof.
+		eapply b_or_bfalse.
+		- eapply b_lookup. reflexivity.
+		- eapply b_const.
+Qed.
+
+Example nat_less : "x" <' 11 ={ penv1 }=> true.
+Proof.
+		eapply b_lt.
+		- eapply a_lookup. reflexivity.
+		- eapply a_const.
+		- auto.
+Qed.
+
+Example nat_less_equal : "x" <=' 10 ={ penv1 }=> true.
+Proof.
+		eapply b_le.
+		- eapply a_lookup. reflexivity.
+		- eapply a_const.
+		- auto.
+Qed.
+
+(* Statement for other langugage *)
+
+Inductive Statement :=
+| s_declaration : VarType -> PVar -> Statement
+| s_assignment : PVar -> AExp -> Statement
+| s_sequence : Statement -> Statement -> Statement
+| s_if_then : BExp -> Statement -> Statement
+| s_if_then_else : BExp -> Statement -> Statement -> Statement
+| s_whileloop : BExp -> Statement -> Statement
+| s_forloop : PVar -> AExp -> BExp -> PVar -> AExp -> Statement -> Statement.
+
+Notation "'int' X" := (s_declaration INT X) (at level 89, left associativity).
+Notation "'bool' X" := (s_declaration BOOL X) (at level 89, left associativity).
+Notation "X ::= A" := (s_assignment X A) (at level 100).
+Notation "S1 ;; S2" := (s_sequence S1 S2) (at level 101, left associativity).
+Notation "'doif' '(' B ')' '(' S ')'" := (s_if_then B S) (at level 100).
+Notation "'doif' '(' B ')' '(' S1 ')' 'doelse' '(' S2 ')'" := (s_if_then_else B S1 S2) (at level 100).
+Notation "'while' '(' B ')' '(' S ')'" := (s_whileloop B S) (at level 100).
+Notation "'for' '(' X1 <- A1 ; B ; X2 <- A2 ')' '(' S ')'" := (s_forloop X1 A1 B X2 A2 S) (at level 100).
+
+
+Compute (for ("x" <- 1 ; "x" <' 10 ; "x" <- "x" +'' 1) ("s" ::= 1)).
+
+
+Reserved Notation "S -{ Sigma }-> Sigma'" (at level 60).
+Inductive peval : Statement -> PEnv -> PEnv -> Prop :=
+| e_int_declaration : forall t x sigma sigma',
+		sigma x = pnull ->
+		t = INT ->
+		sigma' = (pupdate sigma x 0) ->
+		(s_declaration t x) -{ sigma }-> sigma'
+| e_bool_declaration : forall t x sigma sigma',
+		sigma x = pnull ->
+		t = BOOL ->
+		sigma' = (pupdate sigma x false) ->
+		(s_declaration t x) -{ sigma }-> sigma'
+| e_assignment : forall a (i : Z) x sigma sigma',
+		a =[ sigma ]=> i ->
+		sigma' = (pupdate sigma x i) -> 
+		(x ::= a) -{ sigma }-> sigma'
+| e_sequence : forall s1 s2 sigma sigma1 sigma2,
+		s1 -{ sigma }-> sigma1 ->
+		s2 -{ sigma1 }-> sigma2 ->
+		(s1 ;; s2) -{ sigma }-> sigma2
+
+| e_while_bfalse : forall b s sigma,
+		b ={ sigma }=> false ->
+		s_whileloop b s -{ sigma }-> sigma
+| e_while_btrue : forall s b sigma sigma',
+		b ={ sigma }=> true ->
+		(s ;; s_whileloop b s) -{ sigma }-> sigma' ->
+		s_whileloop b s -{sigma}-> sigma'
+
+| e_for_assign : forall x1 x2 a1 a2 b (i : Z) s sigma sigma1 sigma2,
+		a1 =[ sigma ]=> i ->
+		sigma1 = (pupdate sigma x1 i) ->
+		s_forloop x1 a1 b x2 a2 s -{ sigma1 }-> sigma2 ->
+		s_forloop x1 a1 b x2 a2 s -{ sigma }-> sigma2
+| e_for_bfalse : forall x1 x2 a1 a2 b s sigma,
+		b ={ sigma }=> false ->
+		s_forloop x1 a1 b x2 a2 s -{ sigma }-> sigma
+| e_for_btrue : forall x1 x2 a1 a2 b s (i : Z) sigma sigma1 sigma2 sigma3,
+		b ={ sigma }=> true ->
+		s -{ sigma }-> sigma1 ->
+		a2 =[ sigma1 ]=> i ->
+		sigma2 = (pupdate sigma1 x2 i) ->
+		s_forloop x1 a1 b x2 a2 s -{ sigma2 }-> sigma3 ->
+		s_forloop x1 a1 b x2 a2 s -{ sigma }-> sigma2
+where "S -{ Sigma }-> Sigma'" := (peval S Sigma Sigma').
