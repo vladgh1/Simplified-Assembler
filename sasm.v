@@ -1270,10 +1270,7 @@ Definition e_update (env : Env) (v : VarExt) (x : Z) : Env :=
 			else if (VarExt_eq_dec v EBP) then
 				if (VarExt_eq_dec y BP) then (nat_to_val x S2) else env y s
 			else env y s.
-(*Inductive ByteReg := AH | AL | BH | BL | CH | CL | DH | DL.
-Inductive WordReg := AX | BX | CX | DX | SI | DI | BP.
-Inductive DWordReg := EAX | EBX | ECX | EDX | ESI | EDI | EBP.
-Inductive Reg := byteReg (r : ByteReg) | wordReg (r : WordReg) | dwordReg (r : DWordReg) | ESP | SP | EIP.*)
+
 Definition e_free (env : Env) (v : VarExt) : Env :=
 		fun (y : VarExt) (s : Scale) =>
 			if (VarExt_eq_dec y v)
@@ -1575,7 +1572,7 @@ Notation "'jnb' A" := (op_jle A)(at level 6, A at level 5).
 Notation "'jz' A" := (op_jz A)(at level 6, A at level 5).
 Notation "'jnz' A" := (op_jnz A)(at level 6, A at level 5).
 Notation "'jp' A" := (op_jp A)(at level 6, A at level 5).
-Notation "'jnp' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'jnp' A" := (op_jnp A)(at level 6, A at level 5).
 Notation "'js' A" := (op_js A)(at level 6, A at level 5).
 Notation "'jns' A" := (op_jns A)(at level 6, A at level 5).
 
@@ -1610,7 +1607,7 @@ Notation "'XOR' A B" := (op_xor A B)(at level 6, A, B at level 5).
 Notation "'XNOR' A B" := (op_xnor A B)(at level 6, A, B at level 5).
 
 Notation "'DEF' A S" := (op_def A S)(at level 6, A, S at level 5).
-Notation "'FREE' A S" := (op_free A S)(at level 6, A, S at level 5).
+Notation "'FREE' A" := (op_free A)(at level 6, A at level 5).
 
 Notation "'PUSH' A" := (op_push A)(at level 6, A at level 5).
 Notation "'POP' A" := (op_pop A)(at level 6, A at level 5).
@@ -1643,7 +1640,7 @@ Notation "'JNB' A" := (op_jle A)(at level 6, A at level 5).
 Notation "'JZ' A" := (op_jz A)(at level 6, A at level 5).
 Notation "'JNZ' A" := (op_jnz A)(at level 6, A at level 5).
 Notation "'JP' A" := (op_jp A)(at level 6, A at level 5).
-Notation "'JNP' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'JNP' A" := (op_jnp A)(at level 6, A at level 5).
 Notation "'JS' A" := (op_js A)(at level 6, A at level 5).
 Notation "'JNS' A" := (op_jns A)(at level 6, A at level 5).
 
@@ -1812,7 +1809,7 @@ jg "_for";
 call "fun"
 ).
 Definition s0' := makeState s0 p0 0.
-Compute (s_ip s0') 7.
+Compute (s_ip s0') 4.
 Compute (s_lp s0') "_for".
 
 
@@ -2009,7 +2006,7 @@ Fixpoint eval (s : State)(q : QWord)(gas : Gas)(mp : Z) : State :=
 					 st
 					(e_init e a sc)
 					ip lp) (sumqword q 1) (gas') (mp + 1)
-				| op_free a => eval (state m m' st e ip lp) (sumqword q 1) (gas') mp
+				| op_free a => eval (state (mem_free m (m' a)) (map_free m' a) st (e_free e a) ip lp) (sumqword q 1) (gas') mp
 
 				| op_push a => eval (state m m'
 					(pushval st (nat_to_val (a_eval a m m' e) (envScale e a)))
@@ -2101,23 +2098,26 @@ div EBX dword ptr 2;
 inc EBX;
 jp "label";
 def "x" dword ptr;
+mov "x" EAX;
 def "z" byte ptr;
 mov "x" EBX;
 mov EBX dword ptr 10;
 not EBX;
 "label":
+def "x" word ptr;
+def "y" word ptr;
 and EAX word ptr 10;
 xor EDX EDX;
 mov EAX ["z"];
 .
-
+Compute prg0.
 Definition st' := eval (makeState (state mem map stack env ip lp) prg0 0) 0 (nat_to_gas 1000) 1.
 Compute val_to_nat ((s_env st') EAX S0).
-Compute val_to_nat ((s_env st') "x" S0).
+Compute ((s_env st') "y" S0).
 Compute qword_to_nat ((s_map st') "z").
 Compute (s_stack st').
 Compute val_to_nat ((s_env st') EAX S0).
-Compute (s_mem st') 1.
+Compute (s_mem st') 2.
 Compute (e_eval (a_eval ["x"] mem' map' env3) map' env3).
 Compute val_to_nat ((s_env st') PF S0).
 
@@ -2160,6 +2160,24 @@ End SASM.
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (* Another programming language *)
 Require Import String.
 Require Import Coq.Bool.Bool.
@@ -2170,6 +2188,19 @@ Inductive PVal :=
 | boolean : bool -> PVal.
 Coercion integer : Z >-> PVal.
 Coercion boolean : bool >-> PVal.
+
+Definition PVal_to_nat (pv : PVal) : Z :=
+		match pv with
+		| pnull => 0
+		| integer v => v
+		| boolean v => if (v) then 1 else 0
+		end.
+Definition PVal_to_bool (pv : PVal) : bool :=
+		match pv with
+		| pnull => false
+		| integer v => if (Z.eqb v 0) then false else true
+		| boolean v => if (v) then true else false
+		end.
 
 Inductive PVar :=
 | s : string -> PVar.
@@ -2186,7 +2217,6 @@ Definition pupdate (env : PEnv) (x : PVar) (v : PVal) : PEnv :=
 						then v
 						else (env y).
 
-Notation "S [ V // X ]" := (pupdate S X V) (at level 0).
 Definition penv0 := fun (var : PVar) => pnull.
 Definition penv1 := pupdate penv0 "x" 10.
 Definition penv2 := pupdate penv1 "y" 5.
@@ -2210,52 +2240,24 @@ Notation "A /'' B" := (adiv A B) (at level 46).
 Coercion aval : PVal >-> AExp.
 Coercion avar : PVar >-> AExp.
 
-Reserved Notation "A =[ S ]=> N" (at level 70).
+Compute penv1 "x".
 
-Inductive aeval : AExp -> PEnv -> AExp -> Prop :=
-| a_lookup : forall (x : PVar) (i : Z) (sigma : PEnv),
-		sigma x = i ->
-		avar x =[ sigma ]=> i
-| a_const : forall n sigma, aval n =[ sigma ]=> n
-
-| a_add : forall a1 a2 (i1 i2 : Z) sigma n,
-    a1 =[ sigma ]=> i1 ->
-    a2 =[ sigma ]=> i2 ->
-    n = i1 + i2 ->
-    a1 +'' a2 =[sigma]=> n
-
-| a_sub : forall a1 a2 (i1 i2 : Z) n sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		n = i1 - i2 ->
-		i1 -'' i2 =[ sigma ]=> n
-
-| a_mul : forall a1 a2 (i1 i2 : Z) n sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		n = i1 * i2 ->
-		i1 *'' i2 =[ sigma ]=> n
-
-| a_div : forall a1 a2 (i1 i2 : Z) n sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		n = i1 / i2 ->
-		i1 /'' i2 =[ sigma ]=> n
-where "A =[ S ]=> N" := (aeval A S N).
-
-Example ae0 : "x" =[ penv1 ]=> 10.
-Proof.
-		eapply a_lookup.
-		reflexivity.
-Qed.
-
-Example ae1 : "x" +'' 1 =[ penv1 ]=> 11.
-Proof.
-		eapply a_add.
-			- eapply a_lookup. reflexivity.
-			- eapply a_const.
-			- eauto.
-Qed.
+Fixpoint aeval (aexp : AExp)(env : PEnv) : Z :=
+		match aexp with
+		| avar (s v) => PVal_to_nat (env v)
+		| aval v =>
+			match v with
+			| boolean v' => if (v') then 1 else 0
+			| integer v' => v'
+			| _ => 0
+			end
+		| aplus a1 a2 => (aeval a1 env) + (aeval a2 env)
+		| aminus a1 a2 => (aeval a1 env) - (aeval a2 env)
+		| amul a1 a2 => (aeval a1 env) * (aeval a2 env)
+		| adiv a1 a2 => (aeval a1 env) / (aeval a2 env)
+		end.
+Compute aeval (10+''10) penv0.
+Compute aeval (10+''"x") penv1.
 
 
 (* BExp *)
@@ -2284,178 +2286,317 @@ Notation "A <=' B" := (ble A B) (at level 54).
 Notation "A >' B" := (blt B A) (at level 54).
 Notation "A >=' B" := (ble B A) (at level 54).
 
-Reserved Notation "B ={ S }=> B'" (at level 71).
-Inductive beval : BExp -> PEnv -> BExp -> Prop :=
-| b_const : forall n sigma, (bval n) ={ sigma }=> n
-| b_lookup : forall (x : PVar) (i : PVal) (sigma : PEnv),
-		sigma x = i ->
-		(bvar x) ={ sigma }=> i
-| b_not_bfalse : forall b sigma,
-		b ={ sigma }=> false ->
-		(bnot b) ={ sigma }=> true
-| b_not_btrue : forall b sigma,
-		b ={ sigma }=> true ->
-		(bnot b) ={ sigma }=> false
-
-| b_and_bfalse : forall b1 b2 sigma,
-		b1 ={ sigma }=> false ->
-		b1 and b2 ={ sigma }=> false
-| b_and_btrue : forall b1 b2 b2' sigma,
-		b1 ={ sigma }=> true ->
-		b2 ={ sigma }=> b2' ->
-		b1 and b2 ={ sigma }=> b2'
-
-| b_or_bfalse : forall b1 b2 b2' sigma,
-		b1 ={ sigma }=> false ->
-		b2 ={ sigma }=> b2' ->
-		b1 or b2 ={ sigma }=> b2'
-| b_or_btrue : forall b1 b2 sigma,
-		b1 ={ sigma }=> true ->
-		b1 or b2 ={ sigma }=> true
-
-| b_lt : forall a1 a2 (i1 i2 : Z) b sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		b = Z.ltb i1 i2 ->
-		a1 <' a2 ={ sigma }=> b
-		
-| b_le : forall a1 a2 (i1 i2 : Z) b sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		b = Z.leb i1 i2 ->
-		a1 <=' a2 ={ sigma }=> b
-
-| b_ne : forall a1 a2 (i1 i2 : bool) b sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		b = (if eqb i1 i2 then false else true) ->
-		a1 != a2 ={ sigma }=> b
-
-| b_eq : forall a1 a2 (i1 i2 : bool) b sigma,
-		a1 =[ sigma ]=> i1 ->
-		a2 =[ sigma ]=> i2 ->
-		b = (eqb i1 i2) ->
-		a1 == a2 ={ sigma }=> b
-where "B ={ S }=> B'" := (beval B S B').
-
-Definition penv1' := pupdate penv0 "x" true.
-Definition penv2' := pupdate penv1' "y" false.
-Compute penv2' "y".
-
-Example bool_lookup : "x" ={ penv1' }=> true.
-Proof.
-		eapply b_lookup.
-		reflexivity.
-Qed.
-
-Example bool_and_btrue : "x" and true ={ penv1' }=> true.
-Proof.
-		eapply b_and_btrue.
-		- eapply b_lookup. reflexivity.
-		- eapply b_const.
-Qed.
-
-Example bool_and_bfalse : "y" and true ={ penv2' }=> false.
-Proof.
-		eapply b_and_bfalse.
-		- eapply b_lookup. reflexivity.
-Qed.
-
-Example bool_or_btrue : "x" or false ={ penv1' }=> true.
-Proof.
-		eapply b_or_btrue.
-		- eapply b_lookup. reflexivity.
-Qed.
-
-Example bool_or_bfalse : "y" or true ={ penv2' }=> true.
-Proof.
-		eapply b_or_bfalse.
-		- eapply b_lookup. reflexivity.
-		- eapply b_const.
-Qed.
-
-Example nat_less : "x" <' 11 ={ penv1 }=> true.
-Proof.
-		eapply b_lt.
-		- eapply a_lookup. reflexivity.
-		- eapply a_const.
-		- auto.
-Qed.
-
-Example nat_less_equal : "x" <=' 10 ={ penv1 }=> true.
-Proof.
-		eapply b_le.
-		- eapply a_lookup. reflexivity.
-		- eapply a_const.
-		- auto.
-Qed.
+Fixpoint beval (bexp : BExp)(env : PEnv) : bool :=
+		match bexp with
+		| bvar v => PVal_to_bool (env v)
+		| bval v =>
+			match v with
+			| boolean v' => if (v') then true else false
+			| integer v' => if (Z.eqb v' 0) then false else true
+			| _ => false
+			end
+		| bnot b => if (beval b env) then false else true
+		| band b1 b2 => if (andb (beval b1 env) (beval b2 env)) then true else false
+		| bor b1 b2 => if (orb (beval b1 env) (beval b2 env)) then true else false
+		| blt a1 a2 => if (Z.ltb (aeval a1 env) (aeval a2 env)) then true else false
+		| ble a1 a2 => if (Z.leb (aeval a1 env) (aeval a2 env)) then true else false
+		| beq a1 a2 => if (Z.eqb (aeval a1 env) (aeval a2 env)) then true else false
+		| bne a1 a2 => if (Z.eqb (aeval a1 env) (aeval a2 env)) then false else true
+		end.
 
 (* Statement for other langugage *)
 
 Inductive Statement :=
+| s_sequence : Statement -> Statement -> Statement
 | s_declaration : VarType -> PVar -> Statement
 | s_assignment : PVar -> AExp -> Statement
-| s_sequence : Statement -> Statement -> Statement
 | s_if_then : BExp -> Statement -> Statement
 | s_if_then_else : BExp -> Statement -> Statement -> Statement
-| s_whileloop : BExp -> Statement -> Statement
-| s_forloop : PVar -> AExp -> BExp -> PVar -> AExp -> Statement -> Statement.
+| s_whileloop : BExp -> Statement -> Statement.
 
-Notation "'int' X" := (s_declaration INT X) (at level 89, left associativity).
-Notation "'bool' X" := (s_declaration BOOL X) (at level 89, left associativity).
+Notation "'int' X" := (s_declaration INT X) (at level 89).
+Notation "'bool' X" := (s_declaration BOOL X) (at level 89).
 Notation "X ::= A" := (s_assignment X A) (at level 100).
-Notation "S1 ;; S2" := (s_sequence S1 S2) (at level 101, left associativity).
+Notation "S1 ;; S2" := (s_sequence S1 S2) (at level 101, right associativity).
 Notation "'doif' '(' B ')' '(' S ')'" := (s_if_then B S) (at level 100).
 Notation "'doif' '(' B ')' '(' S1 ')' 'doelse' '(' S2 ')'" := (s_if_then_else B S1 S2) (at level 100).
 Notation "'while' '(' B ')' '(' S ')'" := (s_whileloop B S) (at level 100).
-Notation "'for' '(' X1 <- A1 ; B ; X2 <- A2 ')' '(' S ')'" := (s_forloop X1 A1 B X2 A2 S) (at level 100).
 
 
-Compute (for ("x" <- 1 ; "x" <' 10 ; "x" <- "x" +'' 1) ("s" ::= 1)).
+Fixpoint peval (st : Statement)(env : PEnv)(gas : Gas) : PEnv :=
+		match gas with
+		| O => env
+		| G gas' =>
+			match st with
+			| s_sequence s1 s2 => peval s2 (peval s1 env gas') gas'
+			| s_declaration type x =>
+					match type with
+					| BOOL => pupdate env x false
+					| INT => pupdate env x 0
+					end
+			| s_assignment a1 a2 => pupdate env a1 (aeval a2 env)
+			| s_if_then b a => if (beval b env) then peval a env gas' else env
+			| s_if_then_else b a1 a2 => if (beval b env) then peval a1 env gas' else peval a2 env gas'
+			| s_whileloop b a => if (beval b env)
+													then (peval (s_sequence a (s_whileloop b a)) env gas')
+													else env
+			end
+		end.
+
+Definition pprg0 :=
+int "y";;
+int "x";;
+while ("y" <' 10)
+(
+	"x" ::= "x" +'' 9 *'' 4;;
+	"y" ::= "y" +'' 1
+).
 
 
-Reserved Notation "S -{ Sigma }-> Sigma'" (at level 60).
-Inductive peval : Statement -> PEnv -> PEnv -> Prop :=
-| e_int_declaration : forall t x sigma sigma',
-		sigma x = pnull ->
-		t = INT ->
-		sigma' = (pupdate sigma x 0) ->
-		(s_declaration t x) -{ sigma }-> sigma'
-| e_bool_declaration : forall t x sigma sigma',
-		sigma x = pnull ->
-		t = BOOL ->
-		sigma' = (pupdate sigma x false) ->
-		(s_declaration t x) -{ sigma }-> sigma'
-| e_assignment : forall a (i : Z) x sigma sigma',
-		a =[ sigma ]=> i ->
-		sigma' = (pupdate sigma x i) -> 
-		(x ::= a) -{ sigma }-> sigma'
-| e_sequence : forall s1 s2 sigma sigma1 sigma2,
-		s1 -{ sigma }-> sigma1 ->
-		s2 -{ sigma1 }-> sigma2 ->
-		(s1 ;; s2) -{ sigma }-> sigma2
+Notation "'bit' 'ptr' A" := (bitval A)(at level 2, A at level 1).
+Notation "'byte' 'ptr' A" := (byteval A)(at level 2, A at level 1).
+Notation "'word' 'ptr' A" := (wordval A)(at level 2, A at level 1).
+Notation "'dword' 'ptr' A" := (dwordval A)(at level 2, A at level 1).
+Notation "'bit' 'ptr'" := S0 (at level 2).
+Notation "'byte' 'ptr'" := S1 (at level 2).
+Notation "'word' 'ptr'" := S2 (at level 2).
+Notation "'dword' 'ptr'" := S4 (at level 2).
+Notation "'qword' 'ptr'" := S8 (at level 2).
+Notation "E1 +' E2" := (e_sum E1 E2)(at level 20).
+Notation "E1 -' E2" := (e_dif E1 E2)(at level 20).
+Notation "E1 *' E2" := (e_mul E1 E2)(at level 20).
+Notation "E1 /' E2" := (e_div E1 E2)(at level 20).
 
-| e_while_bfalse : forall b s sigma,
-		b ={ sigma }=> false ->
-		s_whileloop b s -{ sigma }-> sigma
-| e_while_btrue : forall s b sigma sigma',
-		b ={ sigma }=> true ->
-		(s ;; s_whileloop b s) -{ sigma }-> sigma' ->
-		s_whileloop b s -{sigma}-> sigma'
+Notation "A ';' B" := (sequence A B) (at level 9, right associativity).
+Notation "A ';'" := (sequence A op_nop) (at level 9).
+Notation "A ':' B" := (lsequence A B) (at level 9, right associativity).
+Notation "'nop'" := (op_nop)(at level 6).
+Notation "'mov' A B" := (op_mov A B)(at level 6, A, B at level 5).
 
-| e_for_assign : forall x1 x2 a1 a2 b (i : Z) s sigma sigma1 sigma2,
-		a1 =[ sigma ]=> i ->
-		sigma1 = (pupdate sigma x1 i) ->
-		s_forloop x1 a1 b x2 a2 s -{ sigma1 }-> sigma2 ->
-		s_forloop x1 a1 b x2 a2 s -{ sigma }-> sigma2
-| e_for_bfalse : forall x1 x2 a1 a2 b s sigma,
-		b ={ sigma }=> false ->
-		s_forloop x1 a1 b x2 a2 s -{ sigma }-> sigma
-| e_for_btrue : forall x1 x2 a1 a2 b s (i : Z) sigma sigma1 sigma2 sigma3,
-		b ={ sigma }=> true ->
-		s -{ sigma }-> sigma1 ->
-		a2 =[ sigma1 ]=> i ->
-		sigma2 = (pupdate sigma1 x2 i) ->
-		s_forloop x1 a1 b x2 a2 s -{ sigma2 }-> sigma3 ->
-		s_forloop x1 a1 b x2 a2 s -{ sigma }-> sigma2
-where "S -{ Sigma }-> Sigma'" := (peval S Sigma Sigma').
+Notation "'add' A B" := (op_add A B)(at level 6, A, B at level 5).
+Notation "'sub' A B" := (op_sub A B)(at level 6, A, B at level 5).
+Notation "'mul' A B" := (op_mul A B)(at level 6, A, B at level 5).
+Notation "'div' A B" := (op_div A B)(at level 6, A, B at level 5).
+
+Notation "'inc' A" := (op_inc A)(at level 6, A at level 5).
+Notation "'dec' A" := (op_dec A)(at level 6, A at level 5).
+
+Notation "'xchg' A B" := (op_xchg A B)(at level 6, A, B at level 5).
+
+Notation "'shr' A" := (op_shr A)(at level 6, A at level 5).
+Notation "'shl' A" := (op_shl A)(at level 6, A at level 5).
+Notation "'sar' A" := (op_sar A)(at level 6, A at level 5).
+Notation "'sal' A" := (op_sal A)(at level 6, A at level 5).
+Notation "'ror' A" := (op_ror A)(at level 6, A at level 5).
+Notation "'rol' A" := (op_rol A)(at level 6, A at level 5).
+Notation "'not' A" := (op_not A)(at level 6, A at level 5).
+Notation "'neg' A" := (op_neg A)(at level 6, A at level 5).
+
+Notation "'and' A B" := (op_and A B)(at level 6, A, B at level 5).
+Notation "'nand' A B" := (op_nand A B)(at level 6, A, B at level 5).
+Notation "'xand' A B" := (op_xand A B)(at level 6, A, B at level 5).
+Notation "'xnand' A B" := (op_xnand A B)(at level 6, A, B at level 5).
+Notation "'or' A B" := (op_or A B)(at level 6, A, B at level 5).
+Notation "'nor' A B" := (op_nor A B)(at level 6, A, B at level 5).
+Notation "'xor' A B" := (op_xor A B)(at level 6, A, B at level 5).
+Notation "'xnor' A B" := (op_xnor A B)(at level 6, A, B at level 5).
+
+Notation "'def' A S" := (op_def A S)(at level 6, A, S at level 5).
+Notation "'free' A" := (op_free A)(at level 6, A at level 5).
+
+Notation "'push' A" := (op_push A)(at level 6, A at level 5).
+Notation "'pop' A" := (op_pop A)(at level 6, A at level 5).
+
+Notation "'call' A" := (op_call A)(at level 6, A at level 5).
+Notation "'ret'" := (op_ret)(at level 6).
+
+Notation "'cmp' A B" := (op_cmp A B)(at level 6, A, B at level 5).
+Notation "'test' A B" := (op_test A B)(at level 6, A, B at level 5).
+Notation "'jmp' A" := (op_jmp A)(at level 6, A at level 5).
+Notation "'je' A" := (op_je A)(at level 6, A at level 5).
+Notation "'jne' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'jg' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'jnle' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'jge' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'jnl' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'jl' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'jnge' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'jle' A" := (op_jle A)(at level 6, A at level 5).
+Notation "'jng' A" := (op_jle A)(at level 6, A at level 5).
+
+Notation "'jb' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'jnae' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'jbe' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'jna' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'ja' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'jnbe' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'jae' A" := (op_jle A)(at level 6, A at level 5).
+Notation "'jnb' A" := (op_jle A)(at level 6, A at level 5).
+
+Notation "'jz' A" := (op_jz A)(at level 6, A at level 5).
+Notation "'jnz' A" := (op_jnz A)(at level 6, A at level 5).
+Notation "'jp' A" := (op_jp A)(at level 6, A at level 5).
+Notation "'jnp' A" := (op_jnp A)(at level 6, A at level 5).
+Notation "'js' A" := (op_js A)(at level 6, A at level 5).
+Notation "'jns' A" := (op_jns A)(at level 6, A at level 5).
+
+Notation "'NOP'" := (op_nop)(at level 6).
+Notation "'MOV' A B" := (op_mov A B)(at level 6, A, B at level 5).
+Notation "'ADD' A B" := (op_add A B)(at level 6, A, B at level 5).
+Notation "'SUB' A B" := (op_sub A B)(at level 6, A, B at level 5).
+Notation "'MUL' A B" := (op_mul A B)(at level 6, A, B at level 5).
+Notation "'DIV' A B" := (op_div A B)(at level 6, A, B at level 5).
+
+Notation "'INC' A" := (op_inc A)(at level 6, A at level 5).
+Notation "'DEC' A" := (op_dec A)(at level 6, A at level 5).
+
+Notation "'XCHG' A B" := (op_xchg A B)(at level 6, A, B at level 5).
+
+Notation "'SHR' A" := (op_shr A)(at level 6, A at level 5).
+Notation "'SHL' A" := (op_shl A)(at level 6, A at level 5).
+Notation "'SAR' A" := (op_sar A)(at level 6, A at level 5).
+Notation "'SAL' A" := (op_sal A)(at level 6, A at level 5).
+Notation "'ROR' A" := (op_ror A)(at level 6, A at level 5).
+Notation "'ROL' A" := (op_rol A)(at level 6, A at level 5).
+Notation "'NOT' A" := (op_not A)(at level 6, A at level 5).
+Notation "'NEG' A" := (op_neg A)(at level 6, A at level 5).
+
+Notation "'AND' A B" := (op_and A B)(at level 6, A, B at level 5).
+Notation "'NAND' A B" := (op_nand A B)(at level 6, A, B at level 5).
+Notation "'XAND' A B" := (op_xand A B)(at level 6, A, B at level 5).
+Notation "'XNAND' A B" := (op_xnand A B)(at level 6, A, B at level 5).
+Notation "'OR' A B" := (op_or A B)(at level 6, A, B at level 5).
+Notation "'NOR' A B" := (op_nor A B)(at level 6, A, B at level 5).
+Notation "'XOR' A B" := (op_xor A B)(at level 6, A, B at level 5).
+Notation "'XNOR' A B" := (op_xnor A B)(at level 6, A, B at level 5).
+
+Notation "'DEF' A S" := (op_def A S)(at level 6, A, S at level 5).
+Notation "'FREE' A S" := (op_free A S)(at level 6, A, S at level 5).
+
+Notation "'PUSH' A" := (op_push A)(at level 6, A at level 5).
+Notation "'POP' A" := (op_pop A)(at level 6, A at level 5).
+Notation "'CALL' A" := (op_call A)(at level 6, A at level 5).
+Notation "'RET'" := (op_ret)(at level 6).
+
+Notation "'CMP' A B" := (op_cmp A B)(at level 6, A, B at level 5).
+Notation "'TEST' A B" := (op_test A B)(at level 6, A, B at level 5).
+Notation "'JMP' A" := (op_jmp A)(at level 6, A at level 5).
+Notation "'JE' A" := (op_je A)(at level 6, A at level 5).
+Notation "'JNE' A" := (op_jne A)(at level 6, A at level 5).
+Notation "'JG' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'JNLE' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'JGE' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'JNL' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'JL' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'JNGE' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'JLE' A" := (op_jle A)(at level 6, A at level 5).
+Notation "'JNG' A" := (op_jle A)(at level 6, A at level 5).
+
+Notation "'JB' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'JNAE' A" := (op_jg A)(at level 6, A at level 5).
+Notation "'JBE' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'JNA' A" := (op_jge A)(at level 6, A at level 5).
+Notation "'JA' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'JNBE' A" := (op_jl A)(at level 6, A at level 5).
+Notation "'JAE' A" := (op_jle A)(at level 6, A at level 5).
+Notation "'JNB' A" := (op_jle A)(at level 6, A at level 5).
+
+Notation "'JZ' A" := (op_jz A)(at level 6, A at level 5).
+Notation "'JNZ' A" := (op_jnz A)(at level 6, A at level 5).
+Notation "'JP' A" := (op_jp A)(at level 6, A at level 5).
+Notation "'JNP' A" := (op_jnp A)(at level 6, A at level 5).
+Notation "'JS' A" := (op_js A)(at level 6, A at level 5).
+Notation "'JNS' A" := (op_jns A)(at level 6, A at level 5).
+
+
+
+Fixpoint compile (st : Statement)(env : PEnv)(s : string) : Instruction :=
+		match st with
+		| s_sequence s1 s2 => (compile s1 env s) ; (compile s2 (peval s1 env (nat_to_gas 100)) s)
+		| s_declaration type (s x) =>
+			match type with
+			| BOOL => (def x bit ptr)
+			| INT => (def x dword ptr)
+			end
+		| s_assignment (s x) y => mov x (nat_to_val (aeval y env) S4)
+		| s_if_then b s1 =>
+				mov EAX (if (beval b env) then dwordval 1 else dwordval 0) ;
+				cmp EAX (dwordval 1) ;
+				jne (s++"b") ;
+				(compile s1 env (s++"a")) ;
+				(s++"b"): nop
+		| s_if_then_else b s1 s2 =>
+				mov EAX (if (beval b env) then dwordval 1 else dwordval 0) ;
+				cmp EAX (dwordval 1) ;
+				jne (s++"b") ;
+				(compile s1 env (s++"a")) ;
+				jmp (s++"c") ;
+				(s++"b"): nop;
+				(compile s2 env (s++"a")) ;
+				(s++"c"): nop
+
+		| s_whileloop b s1 =>
+				(s++"b"):
+				mov EAX (if (beval b env) then dwordval 1 else dwordval 0) ;
+				(cmp EAX (nat_to_val 1 S4)) ;
+				jne (s++"c") ;
+				s: nop;
+				(compile s1 env (s++"a")) ;
+				jmp (s++"b") ;
+				(s++"c"): nop
+		end.
+
+
+Definition pp1 :=
+(
+	int "x";;
+	int "y";;
+	"y" ::= 10;;
+	"x" ::= "y"
+).
+Compute (peval pp1 penv0 (nat_to_gas 1000)) "y".
+Definition c1 := compile pp1 penv0 "".
+Compute c1.
+Compute (nop; def "x" S4).
+Definition r1 := (eval (makeState (state mem map stack env ip lp) c1 0) 0 (nat_to_gas 1000) 1).
+
+Compute val_to_nat ((s_env r1) "x" S0).
+Compute ((s_env r1) "x" S0).
+Compute ((s_mem r1) 2).
+Compute (s_stack r1).
+Compute val_to_nat ((s_env r1) EAX S0).
+Compute (s_map r1) "y".
+Compute val_to_nat ((s_env r1) PF S0).
+Compute (s_ip r1) 4.
+
+Definition pp2 :=
+(
+	int "x";;
+	"x" ::= 1;;
+	int "y";;
+	doif ("y" >' 10) (
+		"y" ::= "y" +'' 10;;
+		"x" ::= 100;;
+		"x" ::= 101;;
+		"y" ::= 6
+	) doelse (
+		"y" ::= "x";;
+		"x" ::= 11;;
+		"x" ::= 12;;
+		"y" ::= 5
+	)
+).
+Compute (peval pp2 penv0 (nat_to_gas 1000)) "y".
+Definition c2 := compile pp2 penv0 "a".
+Compute c2.
+Definition r2 := (eval (makeState (state mem map stack env ip lp) c2 0) 0 (nat_to_gas 1000) 1).
+
+Compute val_to_nat ((s_env r2) "x" S0).
+Compute val_to_nat ((s_env r2) EF S0).
+Compute ((s_env r2) "x" S0).
+Compute ((s_mem r2) 2).
+Compute (s_stack r2).
+Compute val_to_nat ((s_env r2) EAX S0).
+Compute (s_map r2) "y".
+Compute val_to_nat ((s_env r2) PF S0).
+Compute (s_ip r2) 5.
